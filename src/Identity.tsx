@@ -4,7 +4,7 @@ import { Settings, CircleHelp } from "lucide-react";
 import { CustomSelect, Toggle } from "./Select";
 import { Dialog } from "./Extras";
 import { authenticateFactors, useHuman } from "./Security";
-import "./Identity.css";
+import "./styles/Identity.css";
 import { InviteRegistration } from "./RecoveryPage";
 type Api = <T>(
   path: string,

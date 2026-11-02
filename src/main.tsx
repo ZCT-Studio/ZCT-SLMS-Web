@@ -71,9 +71,9 @@ import {
   SupportShell,
 } from "./Portal";
 import { version as webVersion } from "../package.json";
-import "./style.css";
-import "./FormControls.css";
-import "./Portal.css";
+import "./styles/style.css";
+import "./styles/FormControls.css";
+import "./styles/Portal.css";
 import {
   PasswordPromptHost,
   passwordField,

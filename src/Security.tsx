@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Dialog } from "./Extras";
 import { CustomSelect, Toggle } from "./Select";
 import { KeyRound, RefreshCw, ShieldCheck } from "lucide-react";
-import "./Security.css";
+import "./styles/Security.css";
 type Api = <T>(p: string, b?: Record<string, any>, m?: string) => Promise<T>;
 const success = (detail: string) =>
   window.dispatchEvent(new CustomEvent("tcv:success", { detail }));

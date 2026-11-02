@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { Dialog } from "./Extras";
 import { useQueryClient } from "@tanstack/react-query";
-import "./AppDetails.css";
+import "./styles/AppDetails.css";
 
 type App = {
   appid: string;
