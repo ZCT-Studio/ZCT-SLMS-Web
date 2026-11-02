@@ -1,0 +1,297 @@
+.form-actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 20px 0 4px;
+}
+.form-actions > button,
+.form-actions > a {
+  min-width: 126px;
+  justify-content: center;
+}
+.management-card form > .primary,
+.management-card > .primary,
+.modal form > .primary {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-inline: auto;
+}
+.portal-page {
+  display: grid;
+  gap: 18px;
+}
+.duration-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.factor-links {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+}
+.factor-links a {
+  transition:
+    transform 0.18s,
+    border-color 0.18s;
+  border: 1px solid #ecebf5;
+}
+.factor-links a:hover {
+  transform: translateY(-2px);
+  border-color: #c7bff0;
+}
+.factor-links h3 {
+  margin-top: 0;
+}
+.factor-links span {
+  font-size: 12px;
+  color: #7868df;
+}
+.factor-page {
+  width: 100%;
+}
+.factor-page h2 {
+  margin-top: 18px;
+}
+.totp-setup {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  margin: 22px 0;
+}
+.totp-qr {
+  padding: 10px;
+  background: white;
+  border: 1px solid #eeeaf6;
+  border-radius: 16px;
+}
+.totp-setup details {
+  width: 100%;
+  font-size: 12px;
+  color: #7c8499;
+}
+.totp-setup summary {
+  cursor: pointer;
+  text-align: center;
+}
+.security-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 17px 20px;
+  background: #fff8e8;
+  border: 1px solid #f3e8c7;
+  border-radius: 15px;
+  margin-bottom: 22px;
+  color: #8f7647;
+  font-size: 12px;
+}
+.security-banner strong {
+  color: #89703c;
+}
+.security-banner span {
+  flex: 1;
+  min-width: 180px;
+  line-height: 1.7;
+}
+.security-banner .secondary {
+  color: #8a744a;
+  border-color: #e9ddbd;
+  background: #fffdf7;
+}
+.login-methods {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 4px;
+  background: #f7f6fc;
+  border-radius: 11px;
+  margin-bottom: 20px;
+}
+.login-methods button {
+  flex: 1;
+  min-width: 90px;
+  min-height: 36px;
+  padding: 8px 6px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: #8f94a7;
+  font-size: 11px;
+}
+.login-methods button.active {
+  background: #fff;
+  box-shadow: 0 2px 8px #514c7520;
+  color: #7867df;
+}
+.auth-switch {
+  margin-top: 20px;
+}
+.forgot-link {
+  display: block;
+  text-align: center;
+  color: #8a7bdd;
+  font-size: 12px;
+  margin-top: 14px;
+}
+.review-text,
+.ticket-thread p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  line-height: 1.85;
+  color: #60687d;
+}
+.review-users {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: #8b91a1;
+}
+.review-version {
+  padding: 14px;
+  background: #fafafe;
+  border: 1px solid #eeedf5;
+  border-radius: 12px;
+  margin-bottom: 12px;
+}
+.review-version strong {
+  font-size: 13px;
+}
+.review-version small {
+  color: #a0a6b5;
+}
+.ticket-thread {
+  display: grid;
+  gap: 14px;
+  margin: 24px 0;
+}
+.ticket-thread article {
+  padding: 16px;
+  border: 1px solid #ebeaf3;
+  border-radius: 13px;
+  background: #fcfcff;
+}
+.ticket-thread header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+}
+.ticket-thread small {
+  color: #a0a6b5;
+}
+.ticket-reset {
+  padding-top: 20px;
+  margin-top: 24px;
+  border-top: 1px solid #eeedf5;
+}
+.text-button {
+  border: 0;
+  background: none;
+  color: #7c6adb;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+}
+.clickable-row {
+  cursor: pointer;
+}
+.clickable-row:hover {
+  background: #faf9ff;
+}
+.email-completion {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.email-completion input {
+  flex: 1;
+  min-width: 0;
+}
+.email-completion span {
+  font-weight: 400;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  max-width: 45%;
+  color: #8b819e;
+}
+.recovery-card {
+  margin: auto;
+}
+.recovery-card:has(.ticket-thread) {
+  width: min(900px, calc(100% - 32px));
+}
+.sidebar > nav {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.sidebar-bottom {
+  flex-shrink: 0;
+}
+.nav-top .sidebar > nav {
+  overflow-y: hidden;
+}
+.details-description > .secondary {
+  display: flex;
+  margin: 16px auto 0;
+}
+.guest-ticket {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #eeedf5;
+  font-size: 12px;
+}
+.guest-ticket summary {
+  cursor: pointer;
+  color: #8878d9;
+  text-align: center;
+}
+@media (max-width: 600px) {
+  .duration-fields {
+    grid-template-columns: 1fr;
+  }
+  .factor-links {
+    grid-template-columns: 1fr;
+  }
+  .form-actions > button {
+    min-width: 110px;
+  }
+  .security-banner {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .email-completion {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .email-completion span {
+    max-width: 100%;
+  }
+  .nav-top .sidebar > nav {
+    overflow-x: auto;
+  }
+}
+.overlay {
+  z-index: 1000;
+}
+.success-layer {
+  z-index: 1400;
+}
+.passkey-remove-options {
+  display: grid;
+  gap: 10px;
+  margin: 18px 0;
+}
+.passkey-remove-options button {
+  width: 100%;
+  justify-content: center;
+  min-height: 44px;
+  white-space: normal;
+}

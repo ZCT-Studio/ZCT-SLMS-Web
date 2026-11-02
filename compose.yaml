@@ -1,0 +1,11 @@
+services:
+  web:
+    build: .
+    ports:
+      - "${WEB_PORT:-17316}:80"
+    environment:
+      BACKEND_URL: "${BACKEND_URL:-http://host.docker.internal:17112}"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
