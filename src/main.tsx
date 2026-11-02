@@ -805,63 +805,6 @@ function AppShell({
                     color="orange"
                   />
                 </div>
-                <div className="dashboard-grid">
-                  <div className="panel">
-                    <div className="panel-heading">
-                      <div>
-                        <h2>最近创建的卡密</h2>
-                        <p>当前应用的最新授权记录</p>
-                      </div>
-                      <NavLink reloadDocument to="/licenses">
-                        查看全部 <ArrowRight size={15} />
-                      </NavLink>
-                    </div>
-                    <LicenseTable
-                      table={table}
-                      loading={licenses.isLoading}
-                      error={licenses.error as Error | null}
-                      limit={5}
-                    />
-                  </div>
-                  <div className="panel side-panel">
-                    <div className="panel-heading">
-                      <div>
-                        <h2>应用概况</h2>
-                        <p>您的工作空间</p>
-                      </div>
-                    </div>
-                    <div className="chart-wrap">
-                      <ResponsiveContainer width="100%" height={110}>
-                        <PieChart>
-                          <Pie
-                            data={[
-                              {
-                                name: "未封禁",
-                                value: Math.max(0, list.length - banned),
-                              },
-                              { name: "已封禁", value: banned },
-                            ]}
-                            dataKey="value"
-                            innerRadius={30}
-                            outerRadius={48}
-                          >
-                            {["#8878f4", "#f0aa9d"].map((c) => (
-                              <Cell key={c} fill={c} />
-                            ))}
-                          </Pie>
-                          <Tooltip />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
-                    <div className="side-number">
-                      {apps.data?.length ?? "—"} <small>个应用</small>
-                    </div>
-                    <p className="muted">当前应用卡密封禁分布</p>
-                    <NavLink reloadDocument to="/apps" className="outline-link">
-                      管理应用 <ArrowRight size={15} />
-                    </NavLink>
-                  </div>
-                </div>
               </>
             )}
             {location.pathname === "/apps" && (
