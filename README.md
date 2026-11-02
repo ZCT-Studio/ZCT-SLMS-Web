@@ -34,7 +34,7 @@ npm run dev
 
 ### 国内镜像构建
 
-如 Docker Hub 或 npm 下载缓慢，可使用构建参数指定镜像（不修改系统级 Docker 配置）：
+如 Docker Hub 或 npm 下载缓慢，可使用构建参数指定镜像：
 
 ```powershell
 docker compose build --build-arg NODE_IMAGE=docker.1ms.run/library/node:22-alpine --build-arg NGINX_IMAGE=docker.1ms.run/library/nginx:alpine --build-arg NPM_REGISTRY=https://registry.npmmirror.com/
