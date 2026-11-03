@@ -1248,3 +1248,5 @@ button:active:not(:disabled) {
 .identity-unavailable{text-align:center;width:100%}.security-check-actions{flex-direction:column;align-items:center;justify-content:center}.security-check-actions>button{width:100%}.security-check-actions>a,.security-check-actions>.back-link{align-self:center}
 
 .ticket-thread article header{gap:10px;flex-wrap:wrap}.ticket-thread article header strong{overflow-wrap:anywhere;min-width:0}.ticket-sender-username{font-size:11px;font-weight:400;color:#8b91a3;margin-left:8px}
+
+.auth-login-page{display:flex;flex-direction:column;min-height:100dvh;height:auto;justify-content:center;padding:88px 12px 24px;box-sizing:border-box}.auth-login-page .login-card{margin:0 auto 24px;max-width:calc(100vw - 24px);flex-shrink:0}.auth-login-page .login-footer{position:static;inset:auto;margin:0 auto}.login-top-links>button{border:0;padding:0;background:none;font:inherit;color:inherit;cursor:pointer}

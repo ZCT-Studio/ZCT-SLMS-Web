@@ -64,3 +64,13 @@ npm run dev
 ## 许可证
 
 见 [LICENSE](LICENSE)。
+
+## 静态 Demo
+
+推送 `v` 开头的 tag（如 `v1.0.0`）时，GitHub Actions 构建并部署一次 GitHub Pages Demo。普通分支推送、PR 和非 `v` 标签不会部署。仓库 Pages 来源需选择 GitHub Actions；环境规则需允许发布标签部署。
+
+Demo 使用独立入口、Hash 路由和虚拟数据。首先展示登录界面，所有登录方式点击后直接免登录进入演示，无后端请求、凭据、支付或真实授权服务。操作仅改变页面内存，刷新恢复；角色切换仅为浏览展示。Demo 的 CSP 禁止网络连接和表单外发。
+
+本地开发使用 `npm run dev:demo`；静态构建使用 `npm run build:demo`，产物为 `dist-demo/`，随后使用 `npm run preview:demo` 预览。项目子目录部署通过 `VITE_BASE_PATH` 指定基础路径。
+
+Demo 与正式版共用登录框、身份/登录方式标签、品牌、统计卡片、应用摘要、移动导航及弹窗组件，样式使用同一套 CSS；第三方演示入口仅保留 Microsoft 和 GitHub。

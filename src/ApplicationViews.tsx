@@ -1,3 +1,4 @@
+import {ApplicationSummary} from "./ProductUI";
 import { useState, useEffect } from "react";
 import { HelpTip } from "./Help";
 import { Shuffle } from "lucide-react";
@@ -191,17 +192,8 @@ export function AppBrowser({
         </div>
       )}
       {apps.map((a) => (
-        <a
-          className="panel app-summary"
-          href={"/app-details?app=" + encodeURIComponent(a.appid)}
-          key={a.appid}
-        >
-          <strong>{a.name}</strong>
-          <span>
-            {a.owner_username || a.creator?.replace(/\*$/, "") || "—"}
-          </span>
-          <code>{a.appid}</code>
-        </a>
+        <ApplicationSummary key={a.appid} href={"/app-details?app="+encodeURIComponent(a.appid)} name={a.name} owner={a.owner_username || a.creator?.replace(/\*$/, "") || "—"} appid={a.appid}/>
+
       ))}
     </div>
   );

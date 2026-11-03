@@ -1,3 +1,4 @@
+import { LoginFrame, AccountRoleTabs, WorkspaceBrand, Stat } from "./ProductUI";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { BackLink } from "./BackLink";
 import React, { useEffect, useMemo, useState } from "react";
@@ -216,41 +217,9 @@ function Login({ onLogin }: { onLogin: (s: Session) => void }) {
     formState: { errors, isSubmitting },
   } = useForm<z.infer<typeof schema>>({ resolver: zodResolver(schema) });
   return (
-    <div className="login-page">
-      <nav className="login-top-links"><a href="/api-docs.html">API 文档</a>{!registration && <a href="/register">注册</a>}</nav>
-      <div className="login-brand">
-        <span>
-          ZCT-SLMS
-        </span>
-      </div>
-      <motion.div
-        initial={{ opacity: 0, y: 15 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="login-card"
-      >
-        <div className="eyebrow">WELCOME BACK</div>
-        <h1>{registration ? "注册用户账号" : "欢迎回来"}</h1>
-        <p></p>
+    <LoginFrame title={registration ? "注册用户账号" : "欢迎回来"} links={<><a href="/api-docs.html">API 文档</a>{!registration && <a href="/register">注册</a>}</>}>
         {!registration && (
-          <div className="role-tabs">
-            {[
-              ["owner", "用户"],
-              ["subuser", "子用户"],
-              ["admin", "管理员/支持"],
-            ].map(([v, l]) => (
-              <button
-                type="button"
-                className={role === v ? "active" : ""}
-                onClick={() => {
-                  setRole(v);
-                  setCodeLogin(false);
-                }}
-                key={v}
-              >
-                {l}
-              </button>
-            ))}
-          </div>
+          <AccountRoleTabs value={role} onChange={(v) => {setRole(v);setCodeLogin(false);}} />
         )}
         {(!registration || role !== "owner") && !codeLogin && (
           <PrimaryLogin api={api} role={role} human={human} onLogin={onLogin} />
@@ -279,9 +248,7 @@ function Login({ onLogin }: { onLogin: (s: Session) => void }) {
             {!codeLogin && <a href="/forgot-password">忘记密码</a>}
           </div>
         )}
-      </motion.div>
-      <div className="login-footer">© ZCT-SLMS</div>
-    </div>
+    </LoginFrame>
   );
 }
 function Modal({
@@ -618,13 +585,7 @@ function AppShell({
     >
       <MobileNavigation open={navigationOpen} setOpen={setNavigationOpen} />
       <aside className="sidebar">
-        <div className="brand">
-          <div>
-            <strong>ZCT-SLMS</strong>
-            <div className="versions">Web v{webVersion}</div>
-          </div>
-        </div>
-        <div className="nav-divider" />
+        <WorkspaceBrand />
         <nav>
           <NavLink reloadDocument to="/" end>
             <LayoutDashboard />
@@ -1245,31 +1206,6 @@ function AppSelect({
       placeholder="暂无应用"
       options={apps.map((a) => ({ value: a.appid, label: a.name }))}
     />
-  );
-}
-function Stat({
-  icon,
-  label,
-  value,
-  hint,
-  color,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: number | undefined;
-  hint: string;
-  color: string;
-}) {
-  return (
-    <div className="stat panel">
-      <div className="stat-top">
-        <div className={"stat-icon " + color}>{icon}</div>
-        <span>实时</span>
-      </div>
-      <div className="stat-label">{label}</div>
-      <div className="stat-number">{value ?? "—"}</div>
-      <div className="stat-hint">{hint}</div>
-    </div>
   );
 }
 function Empty({ text }: { text: string }) {
