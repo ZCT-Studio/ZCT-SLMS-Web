@@ -1,4 +1,4 @@
-name: Deploy static demo
+name: Deploy Static Demo
 on:
   push:
     tags:

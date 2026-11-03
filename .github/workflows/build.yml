@@ -1,7 +1,5 @@
 name: Build and Release
 
-# main/main-* build on PR; other branches build on push and PR.
-# A v* tag on ANY branch builds and publishes. No manual publishing.
 on:
   push:
     branches:
@@ -16,7 +14,7 @@ permissions:
 
 jobs:
     build:
-        name: Build Web UI
+        name: Build
         runs-on: ubuntu-24.04
         steps:
             - uses: actions/checkout@v4
@@ -33,7 +31,7 @@ jobs:
                   if-no-files-found: error
 
     docker:
-        name: Docker build / tag publish
+        name: Docker Build / Tag Publish
         needs: [build]
         runs-on: ubuntu-24.04
         permissions:
@@ -83,12 +81,12 @@ jobs:
               with:
                   name: ZCT-SLMS-Web
                   path: dist
-            - name: Archive Web UI
+            - name: Archive Web
               run: tar -czf ZCT-SLMS-Web.tar.gz -C dist .
             - uses: softprops/action-gh-release@v2
               with:
                   tag_name: ${{ github.ref_name }}
-                  name: ZCT-SLMS Web UI ${{ github.ref_name }}
+                  name: ZCT-SLMS Web ${{ github.ref_name }}
                   files: ZCT-SLMS-Web.tar.gz
                   fail_on_unmatched_files: true
                   prerelease: ${{ contains(github.ref_name, '-') }}
