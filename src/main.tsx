@@ -621,7 +621,7 @@ function AppShell({
         <div className="brand">
           <div>
             <strong>ZCT-SLMS</strong>
-            <div className="versions">WebUI v{webVersion}</div>
+            <div className="versions">Web v{webVersion}</div>
           </div>
         </div>
         <div className="nav-divider" />

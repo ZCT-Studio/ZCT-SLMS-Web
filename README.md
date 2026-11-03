@@ -1,4 +1,4 @@
-# ZCT-SLMS WebUI
+# ZCT-SLMS-Web
 
 软件授权验证平台管理界面，连接 ZCT-SLMS 后端。
 
