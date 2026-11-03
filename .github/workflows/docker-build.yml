@@ -1,7 +1,7 @@
 name: Docker Build (verify)
 
 # 构建验证：PR（目标 main/dev）与非 main 分支的 push 触发，仅构建不推送；
-# main 分支不做构建验证，改由 docker-push 工作流在 main push 时构建并推送镜像
+# main 分支不做构建验证，镜像发布只由 v* tag 的 docker-push 工作流负责
 on:
   pull_request:
     branches:
