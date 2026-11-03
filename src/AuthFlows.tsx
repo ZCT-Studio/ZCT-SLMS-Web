@@ -1,3 +1,4 @@
+import { LoginMethodTabs } from "./ProductUI";
 import { BackLink } from "./BackLink";
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -107,21 +108,7 @@ export function PrimaryLogin({
         }
       }}
     >
-      <div className="login-methods">
-        {["password", "passkey", "totp"].map((k) => (
-          <button
-            type="button"
-            key={k}
-            className={method === k ? "active" : ""}
-            onClick={() => {
-              setMethod(k);
-              setError("");
-            }}
-          >
-            {labels[k]}
-          </button>
-        ))}
-      </div>
+      <LoginMethodTabs value={method} onChange={(k)=>{setMethod(k);setError("");}} />
       <label>
         用户名
         <input

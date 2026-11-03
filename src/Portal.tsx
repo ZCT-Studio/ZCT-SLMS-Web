@@ -1,3 +1,4 @@
+import { WorkspaceBrand } from "./ProductUI";
 import { TicketEditor, TicketContent } from "./TicketMarkdown";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { BackLink } from "./BackLink";
@@ -891,13 +892,7 @@ export function SupportShell({
     >
       <MobileNavigation open={navigationOpen} setOpen={setNavigationOpen} />
       <aside className="sidebar">
-        <div className="brand">
-          <div>
-            <strong>ZCT-SLMS</strong>
-            <div className="versions">Web v{webVersion}</div>
-          </div>
-        </div>
-        <div className="nav-divider" />
+        <WorkspaceBrand />
         <nav>
           {[
             ["/", "支持工作台", LayoutDashboard],

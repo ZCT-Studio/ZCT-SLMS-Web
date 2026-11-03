@@ -5,3 +5,5 @@ dist-demo/
 .env.local
 
 .env
+
+dist-demo/
