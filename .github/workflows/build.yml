@@ -24,10 +24,14 @@ jobs:
                   cache: npm
             - run: npm ci --no-audit --no-fund
             - run: npm run build
+            - name: Stage Static Files
+              run: |
+                  mkdir -p package/ZCT-SLMS-Web
+                  cp -a dist/. package/ZCT-SLMS-Web/
             - uses: actions/upload-artifact@v4
               with:
-                  name: ZCT-SLMS-Web-static-all-platforms
-                  path: dist/
+                  name: ZCT-SLMS-Web
+                  path: package/
                   if-no-files-found: error
 
     docker:
@@ -79,18 +83,18 @@ jobs:
         steps:
             - uses: actions/download-artifact@v4
               with:
-                  name: ZCT-SLMS-Web-static-all-platforms
-                  path: dist
+                  name: ZCT-SLMS-Web
+                  path: .
             - name: Archive Universal Static Files
               run: |
-                  tar -czf ZCT-SLMS-Web-static.tar.gz -C dist .
-                  (cd dist && zip -qr ../ZCT-SLMS-Web-static.zip .)
+                  tar -czf ZCT-SLMS-Web.tar.gz ZCT-SLMS-Web
+                  zip -qr ZCT-SLMS-Web.zip ZCT-SLMS-Web
             - uses: softprops/action-gh-release@v2
               with:
                   tag_name: ${{ github.ref_name }}
                   name: ZCT-SLMS Web ${{ github.ref_name }}
                   files: |
-                      ZCT-SLMS-Web-static.tar.gz
-                      ZCT-SLMS-Web-static.zip
+                      ZCT-SLMS-Web.tar.gz
+                      ZCT-SLMS-Web.zip
                   fail_on_unmatched_files: true
                   prerelease: ${{ contains(github.ref_name, '-') }}

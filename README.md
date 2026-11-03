@@ -77,7 +77,7 @@ Demo 与正式版共用登录框、身份/登录方式标签、品牌、统计�
 
 ## CI 产物
 
-- 通用静态文件：`ZCT-SLMS-Web-static-all-platforms`，适用于各系统的静态 Web 服务器；`v*` 发布附带 `.zip` 和 `.tar.gz` 压缩包。
+- 通用静态文件：`ZCT-SLMS-Web`，适用于各系统的静态 Web 服务器；`v*` 发布附带 `ZCT-SLMS-Web.zip` 和 `ZCT-SLMS-Web.tar.gz`，解压后静态文件位于顶层 `ZCT-SLMS-Web/` 文件夹内。
 - Docker：`linux/amd64`（x64）与 `linux/arm64`，发布为 `ghcr.io/zct-studio/zct-slms-web` 的同一个多架构镜像，拉取时按主机架构选择。
 
 普通 CI 构建不推送镜像；`v*` 标签推送镜像并创建 Release，稳定版本更新 `latest`。Demo Pages 保持独立工作流，仅 `v*` 标签部署。
