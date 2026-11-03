@@ -1,3 +1,4 @@
+import { ResponsiveTable } from "./ResponsiveTable";
 import { useEffect, useMemo, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -14,6 +15,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { CustomSelect } from "./Select";
+import { AccountActions } from "./AccountActions";
 type Api = <T>(
   path: string,
   params?: Record<string, string | number>,
@@ -57,8 +59,9 @@ type SubUser = {
 const bindingName = (v: string) =>
   ({ NONE: "无", IP: "IP", DEVICE: "设备", IP_AND_DEVICE: "设备和 IP" })[v] ??
   v;
-const profileKey = (s: Session) => `tcv-profile:${s.user_type}:${s.user_id}`;
+const profileKey = (s: Session) => `zct_slms-profile:v2:${s.user_type}:${s.user_id}`;
 const dialogStack: symbol[] = [];
+let dialogOverflow = "";
 export function Dialog({
   title,
   close,
@@ -69,19 +72,52 @@ export function Dialog({
   children: React.ReactNode;
 }) {
   const identity = useRef(Symbol()),
+    panel = useRef<HTMLDivElement>(null),
     closeRef = useRef(close);
   closeRef.current = close;
   useEffect(() => {
     const id = identity.current;
+    const previous = document.activeElement as HTMLElement | null;
+    if (!dialogStack.length) {
+      dialogOverflow = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+    }
     dialogStack.push(id);
+    panel.current?.focus({ preventScroll: true });
     const f = (e: KeyboardEvent) => {
       if (e.key === "Escape" && dialogStack.at(-1) === id) closeRef.current();
+      if (e.key === "Tab" && dialogStack.at(-1) === id) {
+        const items = [
+          ...(panel.current?.querySelectorAll<HTMLElement>(
+            'button:not(:disabled),input:not(:disabled):not([type="hidden"]),textarea:not(:disabled),a[href],[tabindex="0"]',
+          ) || []),
+        ].filter((el) => el.getClientRects().length);
+        const first = items[0],
+          last = items.at(-1);
+        if (
+          e.shiftKey &&
+          (document.activeElement === first ||
+            document.activeElement === panel.current)
+        ) {
+          e.preventDefault();
+          last?.focus();
+        } else if (
+          !e.shiftKey &&
+          (document.activeElement === last ||
+            document.activeElement === panel.current)
+        ) {
+          e.preventDefault();
+          first?.focus();
+        }
+      }
     };
     document.addEventListener("keydown", f);
     return () => {
       document.removeEventListener("keydown", f);
       const index = dialogStack.indexOf(id);
       if (index >= 0) dialogStack.splice(index, 1);
+      if (!dialogStack.length) document.body.style.overflow = dialogOverflow;
+      if (previous?.isConnected) previous.focus({ preventScroll: true });
     };
   }, []);
   return createPortal(
@@ -93,6 +129,8 @@ export function Dialog({
     >
       <div
         className="modal"
+        ref={panel}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-label={title}
@@ -110,126 +148,6 @@ export function Dialog({
     document.body,
   );
 }
-export function AppCard({
-  app,
-  role,
-  api,
-}: {
-  app: App;
-  role: string;
-  api: Api;
-}) {
-  const [asking, setAsking] = useState(false),
-    [secret, setSecret] = useState(""),
-    [error, setError] = useState(""),
-    [pending, setPending] = useState(false);
-  return (
-    <div className="panel app-card">
-      <div className="app-top">
-        <div className="app-icon">
-          <KeyRound />
-        </div>
-        <span className="badge green">
-          <i />
-          {String(app.status) === "1"
-            ? "正常"
-            : String(app.status) === "0"
-              ? "停用"
-              : String(app.status)}
-        </span>
-      </div>
-      <h2>{app.name}</h2>
-      <p>{app.description || "暂无应用描述"}</p>
-      <div className="app-meta">
-        <span>应用 ID</span>
-        <code>{app.appid}</code>
-      </div>
-      {role === "ADMIN" && (
-        <div className="app-meta">
-          <span>应用所有者</span>
-          <strong>
-            {app.owner_username || app.creator || "未知"}
-            {app.owner_id ? ` · UID ${app.owner_id}` : ""}
-          </strong>
-        </div>
-      )}
-      <div className="app-meta">
-        <span>应用密钥</span>
-        <div className="secret-line">
-          <code>{secret || "••••••••••••••••"}</code>
-          {role !== "SUBUSER" && (
-            <button
-              className="icon-button"
-              onClick={() =>
-                secret ? setSecret("") : (setError(""), setAsking(true))
-              }
-            >
-              {secret ? <EyeOff size={16} /> : <Eye size={16} />}
-            </button>
-          )}
-        </div>
-      </div>
-      <div className="app-meta">
-        <span>绑定模式</span>
-        <strong>{bindingName(app.binding_mode)}</strong>
-      </div>
-      <div className="app-card-actions">
-        <a
-          href={`/licenses?app=${encodeURIComponent(app.appid)}`}
-          className="secondary"
-        >
-          <KeyRound size={15} /> 查看卡密
-        </a>
-        {role !== "SUBUSER" && (
-          <a
-            href={`/app-settings?app=${encodeURIComponent(app.appid)}`}
-            className="secondary"
-          >
-            <Settings size={15} /> 设置应用
-          </a>
-        )}
-      </div>
-      {asking && (
-        <Dialog title="验证身份后查看密钥" close={() => setAsking(false)}>
-          <form
-            onSubmit={async (e) => {
-              e.preventDefault();
-              try {
-                setPending(true);
-                setError("");
-                const d = await api<{ secret: string }>(
-                  "app/secret/view",
-                  {
-                    app_id: app.appid,
-                    password: String(
-                      new FormData(e.currentTarget).get("password"),
-                    ),
-                  },
-                  "POST",
-                );
-                setSecret(d.secret);
-                setAsking(false);
-              } catch (x) {
-                setError((x as Error).message);
-              } finally {
-                setPending(false);
-              }
-            }}
-          >
-            <label>
-              当前密码
-              <input name="password" type="password" required />
-            </label>
-            {error && <p className="error">{error}</p>}
-            <button className="primary" disabled={pending}>
-              确认查看
-            </button>
-          </form>
-        </Dialog>
-      )}
-    </div>
-  );
-}
 export function AppDanger({ api, app }: { api: Api; app: App }) {
   const [dialog, setDialog] = useState(""),
     [error, setError] = useState(""),
@@ -245,10 +163,22 @@ export function AppDanger({ api, app }: { api: Api; app: App }) {
         </p>
       </div>
       <div className="app-card-actions">
-        <button className="secondary" onClick={() => setDialog("secret")}>
+        <button
+          className="secondary"
+          onClick={() => {
+            setError("");
+            setDialog("secret");
+          }}
+        >
           重置密钥
         </button>
-        <button className="danger-button" onClick={() => setDialog("delete")}>
+        <button
+          className="danger-button"
+          onClick={() => {
+            setError("");
+            setDialog("delete");
+          }}
+        >
           <Trash2 size={15} /> 删除应用
         </button>
       </div>
@@ -258,6 +188,7 @@ export function AppDanger({ api, app }: { api: Api; app: App }) {
           close={() => {
             setDialog("");
             setSecret("");
+            setError("");
           }}
         >
           {secret ? (
@@ -269,50 +200,43 @@ export function AppDanger({ api, app }: { api: Api; app: App }) {
                   ? `删除「${app.name}」后无法撤销。`
                   : "确认重置应用密钥？"}
               </p>
-              {dialog === "secret" && (
-                <label>
-                  当前密码
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                </label>
-              )}
               {error && <p className="error">{error}</p>}
-              <button
-                className="danger-button"
-                disabled={pending || (dialog === "secret" && !password)}
-                onClick={async () => {
-                  try {
-                    setPending(true);
-                    setError("");
-                    if (dialog === "delete") {
-                      await api("app/delete", { id: app.id! }, "POST");
-                      location.href = "/apps";
-                    } else
-                      setSecret(
-                        (
-                          await api<{ secret: string }>(
-                            "app/secret/regenerate",
-                            { id: app.id!, password },
-                            "POST",
-                          )
-                        ).secret,
-                      );
-                  } catch (x) {
-                    setError((x as Error).message);
-                  } finally {
-                    setPending(false);
-                  }
-                }}
-              >
-                {pending
-                  ? "处理中…"
-                  : dialog === "delete"
-                    ? "确认删除"
-                    : "确认重置"}
-              </button>
+              <div className="form-actions">
+                <button
+                  className="danger-button"
+                  disabled={pending}
+                  onClick={async () => {
+                    try {
+                      setPending(true);
+                      setError("");
+                      if (dialog === "delete") {
+                        await api("app/delete", { id: app.id! }, "POST");
+                        location.href = "/apps";
+                      } else
+                        setSecret(
+                          (
+                            await api<{ secret: string }>(
+                              "app/secret/regenerate",
+                              { id: app.id! },
+                              "POST",
+                            )
+                          ).secret,
+                        );
+                    } catch (x) {
+                      if ((x as Error).message !== "操作已取消")
+                        setError((x as Error).message);
+                    } finally {
+                      setPending(false);
+                    }
+                  }}
+                >
+                  {pending
+                    ? "处理中…"
+                    : dialog === "delete"
+                      ? "确认删除"
+                      : "确认重置"}
+                </button>
+              </div>
             </>
           )}
         </Dialog>
@@ -375,7 +299,7 @@ export function ProfileControl({
     } | null>(null),
     [accounts, setAccounts] = useState<Session[]>(() => {
       try {
-        return JSON.parse(sessionStorage.getItem("tcv-accounts") || "[]");
+        return JSON.parse(localStorage.getItem("zct_slms-accounts") || "[]");
       } catch {
         return [];
       }
@@ -396,12 +320,12 @@ export function ProfileControl({
               a.user_type !== session.user_type ||
               a.user_id !== session.user_id,
           ),
-          session,
+          { ...session, nickname: profile.data?.nickname || session.username },
         ];
-        sessionStorage.setItem("tcv-accounts", JSON.stringify(next));
+        localStorage.setItem("zct_slms-accounts", JSON.stringify(next));
         return next;
       }),
-    [session],
+    [session, profile.data?.nickname],
   );
   const nickname = profile.data?.nickname || session.username,
     max = config.data?.max_avatar_bytes || 1048576;
@@ -442,8 +366,10 @@ export function ProfileControl({
                 <span>{a.username}</span>
                 <small>
                   {a.user_type} · {a.user_id}
+                <span role="button" tabIndex={0} aria-label={`移除账号 ${a.username}`} onClick={(e) => { e.stopPropagation(); const next = accounts.filter(x => x.token !== a.token); localStorage.setItem("zct_slms-accounts", JSON.stringify(next)); setAccounts(next); if(a.token === session.token) {localStorage.removeItem("zct_slms-session"); window.location.assign("/?accounts=1");} }} onKeyDown={(e) => {if(e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); e.currentTarget.click(); }}}>删除</span>
                 </small>
                 {a.token === session.token && <i>当前</i>}
+
               </button>
             ))}
           </div>
@@ -488,7 +414,7 @@ export function ProfileControl({
                   await api(
                     "admin/account",
                     {
-                      current_password: String(f.get("current_password")),
+                      current_password: "",
                       new_username: String(f.get("new_username")),
                       new_password: String(f.get("new_password")),
                       display_name: nickname,
@@ -522,7 +448,7 @@ export function ProfileControl({
                 else {
                   setOpen(false);
                   window.dispatchEvent(
-                    new CustomEvent("tcv:success", {
+                    new CustomEvent("zct_slms:success", {
                       detail: "用户资料已保存",
                     }),
                   );
@@ -549,10 +475,6 @@ export function ProfileControl({
             </label>
             {session.user_type === "ADMIN" && session.force_setup && (
               <>
-                <label>
-                  当前密码
-                  <input name="current_password" type="password" required />
-                </label>
                 <label>
                   新密码
                   <input
@@ -598,10 +520,10 @@ export function ProfileControl({
             <label>
               应用管理展示
               <CustomSelect
-                defaultValue={localStorage.getItem("tcv-app-layout") || "auto"}
+                defaultValue={localStorage.getItem("zct_slms-app-layout") || "auto"}
                 onChange={(v) => {
-                  localStorage.setItem("tcv-app-layout", v);
-                  window.dispatchEvent(new Event("tcv:layout"));
+                  localStorage.setItem("zct_slms-app-layout", v);
+                  window.dispatchEvent(new Event("zct_slms:layout"));
                 }}
                 options={[
                   { value: "auto", label: "自动" },
@@ -645,9 +567,6 @@ export function ProfileControl({
                 await api(
                   "admin/account",
                   {
-                    current_password: String(
-                      new FormData(e.currentTarget).get("password"),
-                    ),
                     new_username: rename.username,
                     display_name: rename.nickname,
                     avatar,
@@ -668,7 +587,7 @@ export function ProfileControl({
                 setRename(null);
                 setOpen(false);
                 window.dispatchEvent(
-                  new CustomEvent("tcv:success", {
+                  new CustomEvent("zct_slms:success", {
                     detail: "用户名已修改，请重新登录",
                   }),
                 );
@@ -683,15 +602,6 @@ export function ProfileControl({
             <p className="muted">
               管理员用户名将改为 {rename.username}，保存后需要重新登录。
             </p>
-            <label>
-              当前管理员密码
-              <input
-                type="password"
-                name="password"
-                autoComplete="current-password"
-                required
-              />
-            </label>
             {error && <p className="error">{error}</p>}
             <button className="primary" disabled={pending}>
               {pending ? "保存中…" : "确认修改"}
@@ -719,8 +629,8 @@ export function SubUsers({ api, apps }: { api: Api; apps: App[] }) {
     [busy, setBusy] = useState(false);
   useEffect(() => {
     const f = () => setCreating(true);
-    window.addEventListener("tcv:create-subuser", f);
-    return () => window.removeEventListener("tcv:create-subuser", f);
+    window.addEventListener("zct_slms:create-subuser", f);
+    return () => window.removeEventListener("zct_slms:create-subuser", f);
   }, []);
   const users = useMemo(
     () =>
@@ -754,15 +664,12 @@ export function SubUsers({ api, apps }: { api: Api; apps: App[] }) {
     <>
       <section className="panel">
         <div className="table-toolbar">
-          <div>
-            <h2>子用户列表</h2>
-            <p>在列表内直接分配应用权限</p>
-          </div>
           <div className="user-toolbar">
             <div className="search">
               <Search size={16} />
               <input
                 placeholder="搜索 UID、用户名、昵称"
+                aria-label="搜索子用户"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -770,8 +677,11 @@ export function SubUsers({ api, apps }: { api: Api; apps: App[] }) {
           </div>
         </div>
         {error && <p className="error table-error">{error}</p>}
+        {list.isError && (
+          <p className="error table-error">{(list.error as Error).message}</p>
+        )}
         <div className="table-scroll">
-          <table>
+          <ResponsiveTable>
             <thead>
               <tr>
                 <th>UID</th>
@@ -780,6 +690,7 @@ export function SubUsers({ api, apps }: { api: Api; apps: App[] }) {
                 <th>额度</th>
                 <th>已用</th>
                 <th>应用权限</th>
+                <th>操作</th>
               </tr>
             </thead>
             <tbody>
@@ -808,10 +719,29 @@ export function SubUsers({ api, apps }: { api: Api; apps: App[] }) {
                       })}
                     </div>
                   </td>
+                  <td>
+                    <AccountActions
+                      api={api}
+                      user={u}
+                      role="SUBUSER"
+                      deleteOnly
+                    />
+                  </td>
                 </tr>
               ))}
+              {!list.isError && !users.length && (
+                <tr>
+                  <td colSpan={7} className="empty-cell">
+                    {list.isLoading
+                      ? "正在加载子用户…"
+                      : search
+                        ? "没有符合条件的子用户"
+                        : "暂无子用户"}
+                  </td>
+                </tr>
+              )}
             </tbody>
-          </table>
+          </ResponsiveTable>
         </div>
       </section>
       {creating && (

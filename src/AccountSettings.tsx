@@ -1,7 +1,10 @@
+import { SecurityTicketRequest } from "./SecurityTickets";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { FactorPage } from "./FactorPages";
 import { IdentityAccess } from "./Identity";
+import { TicketNotifications } from "./TicketNotifications";
+import { AccountClosure } from "./AccountActions";
 type Api = <T>(p: string, b?: Record<string, any>, m?: string) => Promise<T>;
 type Session = {
   user_type: string;
@@ -21,7 +24,9 @@ export function AccountSettings({
   const tab =
       window.location.pathname === "/account/connections"
         ? "connections"
-        : "security",
+        : window.location.pathname === "/account/notifications"
+          ? "notifications"
+          : "security",
     kind = window.location.pathname.split("/")[2] || "";
   return (
     <div className="account-settings">
@@ -29,6 +34,7 @@ export function AccountSettings({
         {[
           ["security", "账号安全"],
           ["connections", "第三方授权"],
+          ["notifications", "工单提醒"],
         ].map(([key, label]) => (
           <button
             key={key}
@@ -37,7 +43,7 @@ export function AccountSettings({
             className={tab === key ? "active" : ""}
             onClick={() =>
               window.location.assign(
-                key === "connections" ? "/account/connections" : "/account",
+                key === "security" ? "/account" : "/account/" + key,
               )
             }
           >
@@ -73,14 +79,21 @@ export function AccountSettings({
                   </a>
                 ))}
               </div>
+              <SecurityTicketRequest api={api} />
+              {session.user_type !== "ADMIN" && <AccountClosure api={api} />}
             </>
           )}
         </div>
+      ) : tab === "notifications" ? (
+        <TicketNotifications api={api} />
       ) : (
         <section role="tabpanel" className="panel management-card">
           <h2>第三方授权</h2>
           {session.user_type === "USER" ? (
-            <IdentityAccess api={api} bind />
+            <>
+              <IdentityAccess api={api} bind />
+              <SecurityTicketRequest api={api} />
+            </>
           ) : (
             <p className="muted">
               第三方身份绑定目前面向用户账号；管理员和子用户请使用账号密码及已绑定的双重验证登录。
@@ -152,11 +165,11 @@ function PasswordSettings({
             let accounts: Session[] = [];
             try {
               accounts = JSON.parse(
-                sessionStorage.getItem("tcv-accounts") || "[]",
+                localStorage.getItem("zct_slms-accounts") || "[]",
               );
             } catch {}
-            sessionStorage.setItem(
-              "tcv-accounts",
+            localStorage.setItem(
+              "zct_slms-accounts",
               JSON.stringify(
                 accounts.filter(
                   (a) =>
@@ -165,10 +178,10 @@ function PasswordSettings({
                 ),
               ),
             );
-            sessionStorage.removeItem("tcv-session");
+            localStorage.removeItem("zct_slms-session");
             qc.clear();
             window.dispatchEvent(
-              new CustomEvent("tcv:success", {
+              new CustomEvent("zct_slms:success", {
                 detail: "密码已修改，请重新登录",
               }),
             );

@@ -1,0 +1,152 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>API 文档</title><style>body{font:15px system-ui;margin:auto;max-width:960px;padding:24px;background:#f7f8fa;color:#202634}section{background:white;border-radius:18px;padding:24px;margin:24px 0}pre{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.7}</style><a href="/">返回登录</a><h1>API 文档</h1><section><pre># API 概览
+
+所有端点按**前缀**分四组，每组不同认证策略：
+
+| 前缀 | 角色 | 认证 | 加密/签名 |
+|---|---|---|---|
+| `/api/v1/auth/*` | 登录 / 登出 | 登录公开 | ❌ |
+| `/api/v1/admin/*` | ADMIN | Bearer Token | ❌ |
+| `/api/v1/{app,license}/*` | OWNER / SUBUSER | Bearer Token | ❌ |
+| `/api/v1/client/*` | 客户端 | 四要素（timestamp + nonce + 可选 signature） | ✅ |
+
+## 统一响应格式
+
+```json
+{
+  &quot;code&quot;: 0,
+  &quot;message&quot;: &quot;ok&quot;,
+  &quot;data&quot;: {}
+}
+```
+
+- `code = 0` 表示成功，非 0 为错误码（见下方）。
+- `message` 可读描述。
+- `data` 成功时有值，失败时可能不存在。
+
+## 错误码
+
+| code | 名称 | 说明 |
+|---|---|---|
+| 0 | OK | 成功 |
+| 1001 | BAD_REQUEST | 参数错误 |
+| 1003 | INTERNAL | 内部错误 |
+| 1004 | VALIDATION | 参数校验失败 |
+| 2001 | UNAUTHORIZED | 未授权 |
+| 2004 | IP_NOT_ALLOWED | IP 不允许 |
+| 3001 | APP_NOT_FOUND | APP 不存在 |
+| 3002 | APP_DISABLED | APP 已禁用 |
+| 4001 | SIGNATURE_BAD | 签名错误 |
+| 4002 | TIMESTAMP_BAD | 时间戳错误 |
+| 4003 | NONCE_REPLAY | nonce 重复 |
+| 5001 | LICENSE_NOT_FOUND | 卡密不存在 |
+| 5002 | LICENSE_BANNED | 卡密已封禁 |
+| 5003 | LICENSE_EXPIRED | 卡密已过期 |
+| 5005 | LICENSE_BOUND_IP | IP 绑定不匹配 |
+| 5006 | LICENSE_BOUND_DEV | 设备绑定不匹配 |
+| 9001 | RATE_LIMITED | 请求过于频繁 |
+
+## Bearer Token 认证
+
+所有 `/api/v1/admin/*` 和 `/api/v1/{app,license}/*` 请求必须带：
+
+```http
+Authorization: Bearer eyJhbGciOiJIUzI1NiJ9...
+```
+
+Token 由登录接口返回，存 `sessions` 表。
+
+## Content-Type
+
+- `POST / PUT`：`application/json` 或 `application/x-www-form-urlencoded`
+- `GET`：query string
+- Drogon `paramStr()` 统一处理，参数名应按文档使用小写。
+</pre></section><section><pre># POST /api/v1/client/license/verify
+
+卡密激活/验证。客户端软件启动时调用，返回卡密状态 + 绑定信息 + 剩余时长。
+
+## 请求
+
+### 四要素（必填）
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `appid` | string | APP 唯一标识 |
+| `timestamp` | int64 | Unix 秒级时间戳 |
+| `nonce` | string | 随机字符串 |
+
+### 业务参数
+
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| `license` | string | ✅ | 卡密明文（KEY-XXX-XXX） |
+| `device` | string | ⭕ | 设备标识（MAC 地址 hash / CPU ID hash / 自定义 hash） |
+
+&gt; 当 APP `dec_mode != NONE` 时，外层携带 `appid`、`timestamp`、`nonce`，业务参数 `license` 和 `device` 放进 `encode`。见 [加密传输](../../client/encryption.md)。
+
+## 成功响应
+
+```json
+{
+  &quot;code&quot;: 0,
+  &quot;message&quot;: &quot;ok&quot;,
+  &quot;data&quot;: {
+    &quot;status&quot;: &quot;active&quot;,
+    &quot;remaining&quot;: 86399,
+    &quot;expired&quot;: false,
+    &quot;expires_at&quot;: 1767225600,
+    &quot;binding_mode&quot;: &quot;DEVICE&quot;,
+    &quot;remark&quot;: &quot;VIP 年卡&quot;,
+    &quot;license_type&quot;: &quot;premium&quot;
+  }
+}
+```
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `status` | string | `active` / `expired` / `banned` |
+| `remaining` | int64 | 剩余秒数（未过期时） |
+| `expired` | bool | 是否已过期 |
+| `expires_at` | int64 | Unix 秒级过期时间 |
+| `binding_mode` | string | 当前卡密使用的绑定模式（NONE / IP / DEVICE / IP_AND_DEVICE） |
+| `remark` | string | OWNER 创建卡密时的备注 |
+| `license_type` | string | 自由字符串，OWNER 自定义分类 |
+
+## 失败响应示例
+
+```json
+// APP 不存在
+{&quot;code&quot;: 3001, &quot;message&quot;: &quot;APPID 不存在&quot;}
+
+// 卡密不存在
+{&quot;code&quot;: 5001, &quot;message&quot;: &quot;卡密不存在&quot;}
+
+// 卡密已过期
+{&quot;code&quot;: 5003, &quot;message&quot;: &quot;卡密已过期&quot;}
+
+// 设备绑定失败
+{&quot;code&quot;: 5006, &quot;message&quot;: &quot;设备绑定不匹配&quot;}
+```
+
+## 绑定校验细节
+
+`verify` 内部按 APP 的 binding_mode 决定校验策略：
+
+| APP binding_mode | 校验逻辑 |
+|---|---|
+| `NONE` | 不校验，仅验证状态和时间 |
+| `IP` | `ip` 必须与卡密首次使用时记录的一致 |
+| `DEVICE` | `device` 必须与卡密首次使用时记录的一致 |
+| `IP_AND_DEVICE` | 两者都必须一致 |
+
+卡密首次被 verify 成功时自动记录绑定信息（`bound_ip_hash` / `bound_device_hash`），之后每次都校验。OWNER 可通过 `POST /api/v1/license/unbind` 手动解除。
+
+## 加密响应
+
+若 APP `dec_mode != NONE`，响应被同算法加密：
+
+```json
+{&quot;code&quot;:0,&quot;message&quot;:&quot;ok&quot;,&quot;encode&quot;:&quot;&lt;base64 blob&gt;&quot;}
+```
+
+客户端需要用同一密钥解密 `encode` 拿到原始 JSON（含 `status` / `remaining` / `expires_at` 等字段）。
+</pre></section></html>

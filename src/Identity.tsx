@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { HelpTip } from "./Help";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Settings, CircleHelp } from "lucide-react";
+import { Settings, CircleHelp, Github, Grid2X2 } from "lucide-react";
 import { CustomSelect, Toggle } from "./Select";
 import { Dialog } from "./Extras";
 import { authenticateFactors, useHuman } from "./Security";
@@ -55,13 +56,13 @@ const names: Record<string, string> = {
 };
 export function rememberLogin(s: Session) {
   history.replaceState(null, "", "/");
-  sessionStorage.setItem("tcv-session", JSON.stringify(s));
+  localStorage.setItem("zct_slms-session", JSON.stringify(s));
   let all: Session[] = [];
   try {
-    all = JSON.parse(sessionStorage.getItem("tcv-accounts") || "[]");
+    all = JSON.parse(localStorage.getItem("zct_slms-accounts") || "[]");
   } catch {}
-  sessionStorage.setItem(
-    "tcv-accounts",
+  localStorage.setItem(
+    "zct_slms-accounts",
     JSON.stringify([
       ...all.filter(
         (a) => a.user_type !== s.user_type || a.user_id !== s.user_id,
@@ -71,6 +72,7 @@ export function rememberLogin(s: Session) {
   );
 }
 export function IdentityAdmin({ api }: { api: Api }) {
+  const snapshot = useRef<Record<string, any>>({});
   const [help, setHelp] = useState("");
   const qc = useQueryClient();
   const query = useQuery({
@@ -89,9 +91,10 @@ export function IdentityAdmin({ api }: { api: Api }) {
     setDialog("");
     setPassword("");
     setError("");
-    setDraft({ ...query.data });
+    setDraft({ ...snapshot.current });
   };
   const open = (v: string) => {
+    snapshot.current = { ...draft };
     setDialog(v);
     setPassword("");
     setError("");
@@ -138,9 +141,10 @@ export function IdentityAdmin({ api }: { api: Api }) {
       );
       await qc.invalidateQueries({ queryKey: ["identity-settings"] });
       await qc.invalidateQueries({ queryKey: ["identity-options"] });
-      close();
+      setDialog("");
+      setPassword("");
       window.dispatchEvent(
-        new CustomEvent("tcv:success", { detail: "注册登录配置已保存" }),
+        new CustomEvent("zct_slms:success", { detail: "注册登录配置已保存" }),
       );
     } catch (x) {
       setError((x as Error).message);
@@ -150,10 +154,12 @@ export function IdentityAdmin({ api }: { api: Api }) {
   }
   return (
     <section className="panel management-card identity-admin">
-      <h2>注册登录</h2>
-      <p className="muted">
-        注册默认关闭。已绑定身份的用户可使用已开放的方式登录；新用户注册必须验证其中一种身份。
-      </p>
+      <h2>
+        注册登录{" "}
+        <HelpTip title="注册登录设置说明">
+          已绑定身份的用户可使用已开放的方式登录；新用户可按配置使用邀请码或验证身份注册。
+        </HelpTip>
+      </h2>
       <div className="setting-row">
         <div>
           <strong>站点公开地址</strong>
@@ -181,10 +187,9 @@ export function IdentityAdmin({ api }: { api: Api }) {
         <Toggle
           label="开放用户注册"
           checked={!!draft.registration_enabled}
-          disabled={!query.data}
+          disabled={!query.data || busy}
           onChange={(v) => {
             setDraft((d) => ({ ...d, registration_enabled: v }));
-            open("switches");
           }}
         />
       </div>
@@ -196,10 +201,9 @@ export function IdentityAdmin({ api }: { api: Api }) {
         <Toggle
           label="邀请码注册"
           checked={draft.invite_registration_enabled ?? true}
-          disabled={!query.data}
+          disabled={!query.data || busy}
           onChange={(v) => {
             setDraft((d) => ({ ...d, invite_registration_enabled: v }));
-            open("switches");
           }}
         />
       </div>
@@ -212,7 +216,9 @@ export function IdentityAdmin({ api }: { api: Api }) {
                 ? `短信服务：${draft.sms_provider === "twilio" ? "Twilio" : "阿里云"}`
                 : method === "email"
                   ? "SMTP 验证码"
-                  : `回调路径：/api/v1/auth/connect/callback/${method}`}
+                  : method === "microsoft"
+                    ? "Microsoft OAuth"
+                    : "GitHub OAuth"}
             </small>
           </div>
           <div className="inline-actions">
@@ -226,15 +232,28 @@ export function IdentityAdmin({ api }: { api: Api }) {
             <Toggle
               label={"开放" + label}
               checked={!!draft[method + "_enabled"]}
-              disabled={!query.data}
+              disabled={!query.data || busy}
               onChange={(v) => {
                 setDraft((d) => ({ ...d, [method + "_enabled"]: v }));
-                open("switches");
               }}
             />
           </div>
         </div>
       ))}
+      {!dialog && error && <p className="error">{error}</p>}
+      <div className="form-actions">
+        <button
+          className="primary"
+          disabled={
+            busy ||
+            !query.data ||
+            !Object.keys(draft).some((k) => draft[k] !== query.data?.[k])
+          }
+          onClick={() => void save()}
+        >
+          {busy ? "保存中…" : "保存登录设置"}
+        </button>
+      </div>
       {dialog && (
         <Dialog
           title={
@@ -278,11 +297,35 @@ export function IdentityAdmin({ api }: { api: Api }) {
                 />
               </label>
             )}
+            {dialog === "email" && (
+              <label>
+                SMTP 认证方式
+                <CustomSelect
+                  value={draft.smtp_auth || "auto"}
+                  options={[
+                    { value: "auto", label: "自动" },
+                    { value: "login", label: "LOGIN" },
+                    { value: "plain", label: "PLAIN" },
+                  ]}
+                  onChange={(smtp_auth) =>
+                    setDraft((d) => ({ ...d, smtp_auth }))
+                  }
+                />
+              </label>
+            )}
             {fields.map((k) => (
               <label key={k}>
                 {names[k]}
                 <input
                   name={k}
+                  autoComplete={
+                    k.endsWith("password") ||
+                    k.endsWith("secret") ||
+                    k === "twilio_token"
+                      ? "new-password"
+                      : "off"
+                  }
+                  spellCheck={false}
                   type={
                     k === "smtp_port"
                       ? "number"
@@ -315,6 +358,29 @@ export function IdentityAdmin({ api }: { api: Api }) {
                 />
               </label>
             ))}
+            {dialog === "email" && (
+              <HelpTip title="SMTP 配置与认证失败排查">
+                <p>
+                  QQ 邮箱自动模式使用 LOGIN；也可在认证方式中明确选择 LOGIN。QQ
+                  邮箱：smtp.qq.com，端口 465，选择隐式
+                  TLS；用户名和发件人填写完整 QQ 邮箱地址，密码填写新生成的 16
+                  位授权码。修改 QQ 密码后需要重新获取授权码。
+                </p>
+                <p>
+                  用户名通常填写完整邮箱地址。密码填写服务商提供的 SMTP
+                  授权码或应用密码，并在邮箱后台开启 SMTP。
+                </p>
+                <p>
+                  465 通常使用隐式 TLS；587 通常使用
+                  STARTTLS，请以服务商要求为准。要求 OAuth
+                  的邮箱无法直接使用此密码认证配置。
+                </p>
+                <p>
+                  注册验证码与工单通知使用独立 SMTP 配置，需要分别保存。Login
+                  denied 表示认证被拒绝，请先核对授权码和服务商限制。
+                </p>
+              </HelpTip>
+            )}
             {(dialog === "microsoft" || dialog === "github") && (
               <button
                 type="button"
@@ -476,7 +542,7 @@ function IdentityBindings({ api }: { api: Api }) {
                 { new_password: String(f.get("password")) },
                 "POST",
               );
-              sessionStorage.removeItem("tcv-session");
+              localStorage.removeItem("zct_slms-session");
               location.href = "/";
             } catch (x) {
               setError((x as Error).message);
@@ -523,10 +589,12 @@ export function IdentityAccess({
   onLogin,
   bind = false,
   sharedHuman,
+  mode = "all",
 }: {
   api: Api;
   onLogin?: (s: Session) => void;
   bind?: boolean;
+  mode?: "all" | "providers" | "code";
   sharedHuman?: ReturnType<typeof useHuman>;
 }) {
   const ownHuman = useHuman(api, !sharedHuman),
@@ -595,11 +663,16 @@ export function IdentityAccess({
     }
   }
   return (
-    <div className="identity-access">
+    <div
+      className={`identity-access ${!bind && !registering && !options.isError && mode !== "code" && (mode === "providers" || !available.length) && !options.data?.github_enabled && !options.data?.microsoft_enabled ? "identity-access-empty" : ""}`}
+    >
       {bind && <h3>绑定登录身份</h3>}
+      {mode === "code" && options.data && !available.length && (
+        <p className="muted">管理员尚未启用手机号或邮箱验证码登录。</p>
+      )}
       {bind && <IdentityBindings api={api} />}
       {options.isError && (
-        <p className="muted">无法获取其他登录方式，请检查后端服务版本。</p>
+        <p className="muted identity-unavailable">无法获取其他登录方式，请检查后端服务版本。</p>
       )}
       {registering && !bind && !options.data?.registration_enabled ? (
         <p className="muted">管理员尚未开放用户注册。</p>
@@ -625,7 +698,7 @@ export function IdentityAccess({
           {usingInvite && (
             <InviteRegistration api={api} human={human} onLogin={onLogin} />
           )}
-          {available.length > 0 && !usingInvite && (
+          {mode !== "providers" && available.length > 0 && !usingInvite && (
             <form
               onSubmit={async (e) => {
                 e.preventDefault();
@@ -650,7 +723,7 @@ export function IdentityAccess({
                   );
                   if (bind) {
                     window.dispatchEvent(
-                      new CustomEvent("tcv:success", {
+                      new CustomEvent("zct_slms:success", {
                         detail: "身份绑定成功",
                       }),
                     );
@@ -663,7 +736,7 @@ export function IdentityAccess({
                     const session = await authenticateFactors(api, data);
                     rememberLogin(session);
                     window.dispatchEvent(
-                      new CustomEvent("tcv:success", {
+                      new CustomEvent("zct_slms:success", {
                         detail: registering ? "注册成功" : "登录成功",
                       }),
                     );
@@ -717,19 +790,28 @@ export function IdentityAccess({
                   type="button"
                   className="secondary"
                   disabled={busy || cooldown > 0 || !target || !human.ready}
-                  onClick={async () => {
+                  onClick={async (e) => {
+                    const registration = new FormData(e.currentTarget.form!);
                     try {
                       setBusy(true);
                       setError("");
                       const result = await api<{ challenge_id: string }>(
                         "auth/connect/code",
-                        { method, target, action, password, ...human.fields },
+                        {
+                          method,
+                          target,
+                          action,
+                          password,
+                          username: String(registration.get("username") || ""),
+                          nickname: String(registration.get("nickname") || ""),
+                          ...human.fields,
+                        },
                         "POST",
                       );
                       setChallenge(result.challenge_id);
                       setCooldown(60);
                       window.dispatchEvent(
-                        new CustomEvent("tcv:success", {
+                        new CustomEvent("zct_slms:success", {
                           detail: "验证码已发送，5 分钟内有效",
                         }),
                       );
@@ -781,23 +863,27 @@ export function IdentityAccess({
           )}
           <div className="oauth-actions">
             {(["microsoft", "github"] as const)
-              .filter((p) => options.data?.[(p + "_enabled") as keyof Options])
+              .filter(
+                (p) =>
+                  options.data?.[(p + "_enabled") as keyof Options],
+              )
               .map((p) => (
                 <button
                   type="button"
                   key={p}
-                  className="secondary"
+                  className="secondary oauth-icon"
+                  title={`${labels[p]}：登录或注册`}
+                  aria-label={`${labels[p]}：登录或注册`}
                   disabled={busy || !human.ready}
                   onClick={() => oauth(p)}
                 >
-                  {bind ? "绑定" : "使用"}
-                  {labels[p]}
-                  {bind ? "" : "登录"}
+                  {p === "github" ? <Github size={22} /> : <Grid2X2 size={22} />}
+                  {bind && `绑定${labels[p]}`}
                 </button>
               ))}
           </div>
           {!usingInvite &&
-            (!sharedHuman || registering) &&
+            (!sharedHuman || registering || mode === "code") &&
             (available.length > 0 ||
               options.data?.github_enabled ||
               options.data?.microsoft_enabled) &&
@@ -839,9 +925,22 @@ export function CompleteIdentityLogin({
       "POST",
     )
       .then(async (data) => {
+        if (
+          (data as any).authorization_token ||
+          (data as any).authorization_required
+        ) {
+          if (window.opener) {
+            window.opener.postMessage(
+              { type: "zct_slms:authorization-result", data },
+              location.origin,
+            );
+            window.close();
+          }
+          return;
+        }
         if (data.bound) {
           window.dispatchEvent(
-            new CustomEvent("tcv:success", { detail: "第三方身份已绑定" }),
+            new CustomEvent("zct_slms:success", { detail: "第三方身份已绑定" }),
           );
           return;
         }

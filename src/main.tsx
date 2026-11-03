@@ -1,4 +1,7 @@
+import { ResponsiveTable } from "./ResponsiveTable";
+import { BackLink } from "./BackLink";
 import React, { useEffect, useMemo, useState } from "react";
+import { MobileNavigation } from "./Navigation";
 import { createRoot } from "react-dom/client";
 import {
   BrowserRouter,
@@ -48,12 +51,12 @@ import {
   X,
 } from "lucide-react";
 import { Management } from "./Management";
-import { AppCard, AppDanger, ProfileControl, SubUsers, Dialog } from "./Extras";
+import { AppDanger, ProfileControl, SubUsers, Dialog } from "./Extras";
 import { Policies } from "./Policies";
 import { AppBrowser, SecuritySettings } from "./ApplicationViews";
 import { AppDetails } from "./AppDetails";
 import { AccountSettings } from "./AccountSettings";
-import { CustomSelect } from "./Select";
+import { CustomSelect, MultiSelect } from "./Select";
 import { IdentityAccess, CompleteIdentityLogin } from "./Identity";
 import { authenticateFactors, useHuman } from "./Security";
 import {
@@ -67,13 +70,15 @@ import {
   VoucherPage,
   TicketsPage,
   ReviewPage,
-  ModerationPage,
+  StaffUsers,
   SupportShell,
+  TicketBadge,
 } from "./Portal";
 import { version as webVersion } from "../package.json";
 import "./styles/style.css";
 import "./styles/FormControls.css";
 import "./styles/Portal.css";
+import "./styles/Unified.css";
 import {
   PasswordPromptHost,
   passwordField,
@@ -99,6 +104,9 @@ type App = {
   name: string;
   description: string;
   binding_mode: string;
+  dec_mode?: string;
+  sign_enable?: number;
+  notice?: string;
   status: string;
   created_at: number;
   creator: string;
@@ -106,10 +114,13 @@ type App = {
   owner_username?: string;
 };
 type License = {
+  appid?: string;
+  app_name?: string;
   id: number;
   license: string;
   status: string;
   banned: boolean;
+  expired?: boolean;
   binding_mode: string;
   bound_ip?: string;
   bound_ip_hash?: string;
@@ -128,9 +139,14 @@ type Audit = {
   ip: string;
   created_at: number;
 };
+for (const key of ["zct_slms-session", "zct_slms-accounts"]) {
+  if (!localStorage.getItem(key) && sessionStorage.getItem(key))
+    localStorage.setItem(key, sessionStorage.getItem(key)!);
+  sessionStorage.removeItem(key);
+}
 const getSession = (): Session | null => {
   try {
-    return JSON.parse(sessionStorage.getItem("tcv-session") || "null");
+    return JSON.parse(localStorage.getItem("zct_slms-session") || "null");
   } catch {
     return null;
   }
@@ -142,7 +158,7 @@ async function api<T>(
 ): Promise<T> {
   const confirmation = passwordField(path, params || {}, method);
   if (confirmation && !params?.[confirmation])
-    return requestPassword("验证密码后继续", (password) =>
+    return requestPassword("确认当前操作", (password) =>
       api<T>(path, { ...params, [confirmation]: password }, method),
     );
   const token = getSession()?.token;
@@ -188,6 +204,7 @@ function Login({ onLogin }: { onLogin: (s: Session) => void }) {
   const human = useHuman(api);
   const registration = window.location.pathname === "/register";
   const [role, setRole] = useState("owner");
+  const [codeLogin, setCodeLogin] = useState(false);
   const [error, setError] = useState("");
   const schema = z.object({
     username: z.string().min(1, "请输入用户名"),
@@ -200,44 +217,34 @@ function Login({ onLogin }: { onLogin: (s: Session) => void }) {
   } = useForm<z.infer<typeof schema>>({ resolver: zodResolver(schema) });
   return (
     <div className="login-page">
+      <nav className="login-top-links"><a href="/api-docs.html">API 文档</a>{!registration && <a href="/register">注册</a>}</nav>
       <div className="login-brand">
         <span>
-          TingCloud <small>VERIFIER</small>
+          ZCT-SLMS
         </span>
       </div>
-      <button
-        type="button"
-        className="admin-entry"
-        onClick={() => {
-          setRole(role === "admin" ? "owner" : "admin");
-          setError("");
-        }}
-      >
-        {role === "admin" ? "返回用户登录" : "管理员 / 支持登录"}
-      </button>
       <motion.div
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
         className="login-card"
       >
         <div className="eyebrow">WELCOME BACK</div>
-        <h1>
-          {role === "admin"
-            ? "管理员登录"
-            : registration
-              ? "注册用户账号"
-              : "欢迎回来"}
-        </h1>
-        <p>登录您的账户，开始管理授权与应用。</p>
-        {role !== "admin" && !registration && (
+        <h1>{registration ? "注册用户账号" : "欢迎回来"}</h1>
+        <p></p>
+        {!registration && (
           <div className="role-tabs">
             {[
               ["owner", "用户"],
               ["subuser", "子用户"],
+              ["admin", "管理员/支持"],
             ].map(([v, l]) => (
               <button
+                type="button"
                 className={role === v ? "active" : ""}
-                onClick={() => setRole(v)}
+                onClick={() => {
+                  setRole(v);
+                  setCodeLogin(false);
+                }}
                 key={v}
               >
                 {l}
@@ -245,32 +252,35 @@ function Login({ onLogin }: { onLogin: (s: Session) => void }) {
             ))}
           </div>
         )}
-        {role === "owner" && (
-          <div className="settings-tabs auth-switch">
-            <button
-              type="button"
-              className={!registration ? "active" : ""}
-              onClick={() => window.location.assign("/")}
-            >
-              登录
-            </button>
-            <button
-              type="button"
-              className={registration ? "active" : ""}
-              onClick={() => window.location.assign("/register")}
-            >
-              注册
-            </button>
-          </div>
-        )}
-        {(!registration || role !== "owner") && (
+        {(!registration || role !== "owner") && !codeLogin && (
           <PrimaryLogin api={api} role={role} human={human} onLogin={onLogin} />
         )}
         {role === "owner" && (
-          <IdentityAccess api={api} onLogin={onLogin} sharedHuman={human} />
+          <IdentityAccess
+            api={api}
+            onLogin={onLogin}
+            sharedHuman={human}
+            mode={registration ? "all" : codeLogin ? "code" : "providers"}
+          />
+        )}
+        {registration && (
+          <div className="login-secondary-links">
+            <BackLink href="/">返回登录</BackLink>
+          </div>
+        )}
+        {!registration && (
+          <div className={`login-secondary-links ${codeLogin ? "code-login-links" : ""}`}>
+
+            {role === "owner" && (
+              <button type="button" onClick={() => setCodeLogin((v) => !v)}>
+                {codeLogin ? "使用密码" : "使用验证码"}
+              </button>
+            )}
+            {!codeLogin && <a href="/forgot-password">忘记密码</a>}
+          </div>
         )}
       </motion.div>
-      <div className="login-footer">© TingCloud Verifier</div>
+      <div className="login-footer">© ZCT-SLMS</div>
     </div>
   );
 }
@@ -284,22 +294,9 @@ function Modal({
   children: React.ReactNode;
 }) {
   return (
-    <div className="overlay" onMouseDown={onClose}>
-      <motion.div
-        initial={{ opacity: 0, scale: 0.97 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="modal"
-        onMouseDown={(e) => e.stopPropagation()}
-      >
-        <div className="modal-head">
-          <h2>{title}</h2>
-          <button className="icon-button" onClick={onClose} aria-label="关闭">
-            <X size={19} />
-          </button>
-        </div>
-        {children}
-      </motion.div>
-    </div>
+    <Dialog title={title} close={onClose}>
+      {children}
+    </Dialog>
   );
 }
 function AppShell({
@@ -315,14 +312,21 @@ function AppShell({
     () => new URLSearchParams(window.location.search).get("app") || "",
   );
   const [modal, setModal] = useState("");
+  const [navigationOpen, setNavigationOpen] = useState(false);
+  useEffect(() => {
+    if (location.pathname === "/vouchers")
+      window.location.replace(
+        session.user_type === "ADMIN" ? "/invite-codes" : "/balance-codes",
+      );
+  }, [location.pathname, session.user_type]);
   const [result, setResult] = useState("");
   const [search, setSearch] = useState("");
   const [notice, setNotice] = useState("");
   const [position, setPositionState] = useState(
-    () => localStorage.getItem("tcv-nav-position") || "left",
+    () => localStorage.getItem("zct_slms-nav-position") || "left",
   );
   const setPosition = (v: string) => {
-    localStorage.setItem("tcv-nav-position", v);
+    localStorage.setItem("zct_slms-nav-position", v);
     setPositionState(v);
   };
   const [action, setAction] = useState<{
@@ -346,10 +350,38 @@ function AppShell({
     queryFn: () => api<App[]>("app/list"),
   });
   const current = selected || apps.data?.[0]?.appid || "";
+  const [licenseApps, setLicenseApps] = useState<string[]>(() => {
+    const id = new URLSearchParams(window.location.search).get("app");
+    return id ? [id] : [];
+  });
+  const licenseIds =
+    location.pathname === "/licenses"
+      ? licenseApps.length
+        ? licenseApps
+        : (apps.data || []).map((a) => a.appid)
+      : [current];
   const licenses = useQuery({
-    queryKey: ["licenses", current],
-    queryFn: () => api<License[]>("license/list", { app_id: current }),
-    enabled: !!current && ["/", "/licenses"].includes(location.pathname),
+    queryKey: ["licenses", licenseIds],
+    queryFn: async () => {
+      const out: License[] = [];
+      for (let i = 0; i < licenseIds.length; i += 4) {
+        const groups = await Promise.all(
+          licenseIds.slice(i, i + 4).map(async (id) =>
+            (await api<License[]>("license/list", { app_id: id })).map((r) => ({
+              ...r,
+              appid: id,
+              app_name: apps.data?.find((a) => a.appid === id)?.name || id,
+            })),
+          ),
+        );
+        for (const g of groups) out.push(...g);
+      }
+      return out;
+    },
+    enabled:
+      !!licenseIds.length &&
+      !!current &&
+      ["/", "/licenses"].includes(location.pathname),
   });
   const audit = useQuery({
     queryKey: ["audit"],
@@ -367,8 +399,9 @@ function AppShell({
     onSuccess: (data, vars) => {
       qc.invalidateQueries({ queryKey: ["apps"] });
       qc.invalidateQueries({ queryKey: ["licenses"] });
+      qc.invalidateQueries({ queryKey: ["license-balance"] });
       window.dispatchEvent(
-        new CustomEvent("tcv:success", { detail: "操作成功" }),
+        new CustomEvent("zct_slms:success", { detail: "操作成功" }),
       );
       if (vars.path === "license/create") {
         const d = data as { licenses: string[] };
@@ -385,22 +418,46 @@ function AppShell({
     },
   });
   const list = licenses.data ?? EMPTY_LICENSES;
+  const [licenseStates, setLicenseStates] = useState<string[]>([]);
   const filtered = useMemo(
     () =>
-      list.filter((x) =>
-        `${x.license} ${x.status} ${x.creator} ${x.license_type}`
-          .toLowerCase()
-          .includes(search.toLowerCase()),
+      list.filter(
+        (x) =>
+          (!licenseStates.length ||
+            licenseStates.some((s) =>
+              s === "BANNED"
+                ? x.banned
+                : s === "EXPIRED"
+                  ? x.expired || x.status.toLowerCase() === "expired"
+                  : s === "UNUSED"
+                    ? !x.banned &&
+                      !x.expired &&
+                      x.status.toLowerCase() === "unused"
+                    : !x.banned &&
+                      !x.expired &&
+                      x.status.toLowerCase() === "active",
+            )) &&
+          `${x.license} ${x.status} ${x.creator} ${x.license_type}`
+            .toLowerCase()
+            .includes(search.toLowerCase()),
       ),
-    [list, search],
+    [list, search, licenseStates],
   );
   const active = list.filter(
-    (x) => !x.banned && x.status.toLowerCase() === "active",
+    (x) => !x.banned && !x.expired && x.status.toLowerCase() === "active",
   ).length;
   const banned = list.filter((x) => x.banned).length;
   const columns = licenseColumns;
   const tableColumns = useMemo(
     () => [
+      ...(location.pathname === "/licenses"
+        ? [
+            columns.accessor("app_name", {
+              header: "所属应用",
+              cell: (i) => i.getValue() || "—",
+            }),
+          ]
+        : []),
       columns.accessor("license", {
         header: "卡密",
         cell: (i) => <span className="mono">{i.getValue()}</span>,
@@ -412,7 +469,17 @@ function AppShell({
             className={"badge " + (i.row.original.banned ? "red" : "green")}
           >
             <i />
-            {i.row.original.banned ? "已封禁" : i.getValue()}
+            {i.row.original.banned
+              ? "已封禁"
+              : i.row.original.expired
+                ? "已过期"
+                : (
+                    {
+                      unused: "未使用",
+                      active: "已使用",
+                      expired: "已过期",
+                    } as Record<string, string>
+                  )[i.getValue().toLowerCase()] || i.getValue()}
           </span>
         ),
       }),
@@ -430,9 +497,9 @@ function AppShell({
             IP_AND_DEVICE: "设备和 IP",
           })[i.getValue()] || i.getValue(),
       }),
-      ...(apps.data
-        ?.find((a) => a.appid === current)
-        ?.binding_mode.includes("IP")
+      ...(apps.data?.some(
+        (a) => licenseIds.includes(a.appid) && a.binding_mode.includes("IP"),
+      )
         ? [
             columns.display({
               id: "bound_ip",
@@ -448,8 +515,10 @@ function AppShell({
             }),
           ]
         : []),
-      ...(["DEVICE", "IP_AND_DEVICE"].includes(
-        apps.data?.find((a) => a.appid === current)?.binding_mode || "",
+      ...(apps.data?.some(
+        (a) =>
+          licenseIds.includes(a.appid) &&
+          ["DEVICE", "IP_AND_DEVICE"].includes(a.binding_mode),
       )
         ? [
             columns.display({
@@ -499,16 +568,19 @@ function AppShell({
         ),
       }),
     ],
-    [apps.data, current],
+    [apps.data, current, location.pathname, licenseIds.join(",")],
   );
   const table = useReactTable({
     data: filtered,
     columns: tableColumns,
     getCoreRowModel: coreRows,
   });
-  const title =
-    location.pathname === "/vouchers"
-      ? "兑换码"
+  const title = ["/vouchers", "/invite-codes", "/balance-codes"].includes(
+    location.pathname,
+  )
+    ? "兑换码"
+    : location.pathname === "/support-users"
+      ? "支持账号"
       : location.pathname === "/tickets"
         ? "工单系统"
         : location.pathname === "/review"
@@ -539,12 +611,16 @@ function AppShell({
                                 ? "审计日志"
                                 : "工作台";
   return (
-    <div className={"layout nav-" + position}>
+    <div
+      className={
+        "layout nav-" + position + (navigationOpen ? " navigation-open" : "")
+      }
+    >
+      <MobileNavigation open={navigationOpen} setOpen={setNavigationOpen} />
       <aside className="sidebar">
         <div className="brand">
           <div>
-            <strong>TingCloud</strong>
-            <span>VERIFIER</span>
+            <strong>ZCT-SLMS</strong>
             <div className="versions">WebUI v{webVersion}</div>
           </div>
         </div>
@@ -618,6 +694,7 @@ function AppShell({
           <NavLink reloadDocument to="/tickets">
             <ClipboardList />
             工单系统
+            <TicketBadge api={api} />
           </NavLink>
           {session.user_type === "ADMIN" && (
             <>
@@ -625,13 +702,23 @@ function AppShell({
                 <ShieldCheck />
                 内容审查
               </NavLink>
-              <NavLink reloadDocument to="/moderation">
+              <NavLink reloadDocument to="/support-users">
                 <ShieldCheck />
-                审查设置
+                支持账号
               </NavLink>
             </>
           )}
-          <NavLink reloadDocument to="/vouchers">
+          <NavLink
+            reloadDocument
+            to="/vouchers"
+            className={
+              ["/vouchers", "/invite-codes", "/balance-codes"].includes(
+                location.pathname,
+              )
+                ? "active"
+                : undefined
+            }
+          >
             <KeyRound />
             兑换码
           </NavLink>
@@ -643,12 +730,10 @@ function AppShell({
             position={position}
             setPosition={setPosition}
             onAdd={() => {
-              sessionStorage.removeItem("tcv-session");
-              qc.clear();
-              onLogout();
+              window.location.assign("/?accounts=1&add=1");
             }}
             onSwitch={(account) => {
-              sessionStorage.setItem("tcv-session", JSON.stringify(account));
+              localStorage.setItem("zct_slms-session", JSON.stringify(account));
               qc.clear();
               window.location.href = "/";
             }}
@@ -658,15 +743,13 @@ function AppShell({
               } catch {}
               let all: Session[] = [];
               try {
-                all = JSON.parse(
-                  sessionStorage.getItem("tcv-accounts") || "[]",
-                );
+                all = JSON.parse(localStorage.getItem("zct_slms-accounts") || "[]");
               } catch {}
-              sessionStorage.setItem(
-                "tcv-accounts",
+              localStorage.setItem(
+                "zct_slms-accounts",
                 JSON.stringify(all.filter((a) => a.token !== session.token)),
               );
-              sessionStorage.removeItem("tcv-session");
+              localStorage.removeItem("zct_slms-session");
               qc.clear();
               onLogout();
             }}
@@ -682,86 +765,125 @@ function AppShell({
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.25 }}
           >
-            <div className="page-heading">
-              <div>
-                <div className="eyebrow">
-                  TINGCLOUD VERIFIER <span> / </span> {title.toUpperCase()}
+            {![
+              "/tickets",
+              "/vouchers",
+              "/invite-codes",
+              "/balance-codes",
+              "/review",
+              "/moderation",
+              "/support-users",
+              "/app-details",
+            ].includes(location.pathname) && (
+              <div
+                className={
+                  "page-heading" +
+                  (location.pathname === "/" ? " overview-heading" : "")
+                }
+              >
+                <div>
+                  <h1>
+                    {title === "工作台"
+                      ? `你好，${session.username} 👋`
+                      : title}
+                  </h1>
+                  <p>
+                    {title === "工作台"
+                      ? "欢迎回到控制台，您的授权业务一目了然。"
+                      : title === "应用管理"
+                        ? "管理您的应用和授权接入。"
+                        : title === "卡密管理"
+                          ? "创建、查找和管理应用下的授权卡密。"
+                          : title === "账号设置"
+                            ? "管理您的登录凭据。"
+                            : title === "审计日志"
+                              ? "查看平台最近的管理操作记录。"
+                              : title === "用户列表"
+                                ? "管理用户资料、余额与账号状态。"
+                                : title === "子用户管理"
+                                  ? "管理子用户与应用访问权限。"
+                                  : title === "安全设置"
+                                    ? "配置注册登录、身份验证和权限策略。"
+                                    : title === "平台设置"
+                                      ? "管理平台参数、邮件服务与系统信息。"
+                                      : title === "应用设置"
+                                        ? "配置应用安全、公告、版本和心跳。"
+                                        : "管理平台设置。"}
+                  </p>
                 </div>
-                <h1>
-                  {title === "工作台" ? `你好，${session.username} 👋` : title}
-                </h1>
-                <p>
-                  {title === "工作台"
-                    ? "欢迎回到控制台，您的授权业务一目了然。"
-                    : title === "应用管理"
-                      ? "管理您的应用和授权接入。"
-                      : title === "卡密管理"
-                        ? "创建、查找和管理应用下的授权卡密。"
-                        : title === "账号设置"
-                          ? "管理您的登录凭据。"
-                          : title === "审计日志"
-                            ? "查看平台最近的管理操作记录。"
-                            : "管理平台用户、应用配置与系统操作。"}
-                </p>
-              </div>
-              <div className="heading-actions">
-                <button
-                  className="secondary"
-                  onClick={() => {
-                    qc.invalidateQueries();
-                  }}
-                >
-                  <RefreshCw size={16} /> 刷新
-                </button>
-                {location.pathname === "/management" &&
-                  session.user_type === "ADMIN" && (
-                    <button
-                      className="primary"
-                      onClick={() =>
-                        window.dispatchEvent(new Event("tcv:create-user"))
-                      }
-                    >
-                      <Plus size={16} /> 新建用户
-                    </button>
-                  )}
-                {location.pathname === "/subusers" && (
+                <div className="heading-actions">
                   <button
-                    className="primary"
-                    onClick={() =>
-                      window.dispatchEvent(new Event("tcv:create-subuser"))
-                    }
-                  >
-                    <Plus size={16} /> 创建子用户
-                  </button>
-                )}
-                {["/", "/apps", "/licenses"].includes(location.pathname) && (
-                  <button
-                    className="primary"
+                    className="secondary"
                     onClick={() => {
-                      setResult("");
-                      mutation.reset();
-                      setModal(
-                        location.pathname === "/apps" ? "app" : "license",
-                      );
+                      qc.invalidateQueries();
                     }}
                   >
-                    <Plus size={17} />
-                    {location.pathname === "/apps" ? "创建应用" : "生成卡密"}
+                    <RefreshCw size={16} /> 刷新
                   </button>
-                )}
+                  {location.pathname === "/management" &&
+                    session.user_type === "ADMIN" && (
+                      <button
+                        className="primary"
+                        onClick={() =>
+                          window.dispatchEvent(new Event("zct_slms:create-user"))
+                        }
+                      >
+                        <Plus size={16} /> 新建用户
+                      </button>
+                    )}
+                  {location.pathname === "/subusers" && (
+                    <button
+                      className="primary"
+                      disabled={!system.data?.owner_can_create_subuser}
+                      title={
+                        system.data?.owner_can_create_subuser
+                          ? "创建子用户"
+                          : "管理员尚未允许创建子用户"
+                      }
+                      onClick={() =>
+                        window.dispatchEvent(new Event("zct_slms:create-subuser"))
+                      }
+                    >
+                      <Plus size={16} /> 创建子用户
+                    </button>
+                  )}
+                  {["/", "/apps", "/licenses"].includes(location.pathname) && (
+                    <button
+                      className="primary"
+                      onClick={() => {
+                        setResult("");
+                        mutation.reset();
+                        setModal(
+                          location.pathname === "/apps" ? "app" : "license",
+                        );
+                      }}
+                    >
+                      <Plus size={17} />
+                      {location.pathname === "/apps" ? "创建应用" : "生成卡密"}
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
             {notice && (
               <div className="notice" onClick={() => setNotice("")}>
                 {notice}
                 <X size={15} />
               </div>
             )}
-            {apps.isError && (
-              <div className="error">
-                应用列表加载失败：{(apps.error as Error).message}
-              </div>
-            )}
+            {apps.isError &&
+              [
+                "/",
+                "/apps",
+                "/licenses",
+                "/app-settings",
+                "/app-details",
+                "/subusers",
+              ].includes(location.pathname) && (
+                <div className="error">
+                  应用列表加载失败：{(apps.error as Error).message}
+                </div>
+              )}
             {location.pathname === "/" && (
               <>
                 <div className="section-title">
@@ -775,7 +897,8 @@ function AppShell({
                     onChange={setSelected}
                   />
                 </div>
-                <div className="stats">
+                <div className="stats overview-stats">
+                  <LicenseBalance appId={current} card />
                   <Stat
                     icon={<Box />}
                     label="应用总数"
@@ -794,7 +917,7 @@ function AppShell({
                     icon={<Activity />}
                     label="活跃卡密"
                     value={current ? active : undefined}
-                    hint="状态为 active 且未封禁"
+                    hint="已激活且未被封禁"
                     color="green"
                   />
                   <Stat
@@ -807,9 +930,12 @@ function AppShell({
                 </div>
               </>
             )}
-            {location.pathname === "/apps" && (
-              <AppBrowser apps={apps.data || []} />
-            )}
+            {location.pathname === "/apps" &&
+              (apps.isPending ? (
+                <div className="panel empty-state">正在加载应用…</div>
+              ) : (
+                !apps.isError && <AppBrowser apps={apps.data || []} />
+              ))}
             {location.pathname === "/app-details" &&
               (apps.isLoading ? (
                 <div className="panel management-card">正在加载应用详情…</div>
@@ -824,9 +950,7 @@ function AppShell({
                 !apps.isError && (
                   <div className="panel management-card">
                     <p className="muted">应用不存在或当前账号无权访问。</p>
-                    <a className="secondary" href="/apps">
-                      返回应用管理
-                    </a>
+                    <BackLink href="/apps">返回应用管理</BackLink>
                   </div>
                 )
               ))}
@@ -869,16 +993,35 @@ function AppShell({
               ))}
             {location.pathname === "/security" &&
               session.user_type === "ADMIN" && <SecuritySettings api={api} />}
-            {location.pathname === "/vouchers" && (
-              <VoucherPage api={api} role={session.user_type} />
-            )}
+            {["/invite-codes", "/balance-codes"].includes(location.pathname) &&
+              (location.pathname === "/invite-codes" &&
+              session.user_type === "SUBUSER" ? (
+                <section className="panel management-card">
+                  子用户不能绑定邀请码。
+                </section>
+              ) : (
+                <VoucherPage
+                  api={api}
+                  role={session.user_type}
+                  kind={
+                    location.pathname === "/invite-codes" ? "INVITE" : "BALANCE"
+                  }
+                  key={location.pathname}
+                />
+              ))}
             {location.pathname === "/tickets" && (
               <TicketsPage api={api} role={session.user_type} />
             )}
             {location.pathname === "/review" &&
-              session.user_type === "ADMIN" && <ReviewPage api={api} />}
+              session.user_type === "ADMIN" && (
+                <ReviewPage api={api} canManageRules />
+              )}
+            {location.pathname === "/support-users" &&
+              session.user_type === "ADMIN" && <StaffUsers api={api} />}
             {location.pathname === "/moderation" &&
-              session.user_type === "ADMIN" && <ModerationPage api={api} />}
+              session.user_type === "ADMIN" && (
+                <ReviewPage api={api} canManageRules initialTab="FILTER" />
+              )}
             {location.pathname.startsWith("/account") && (
               <AccountSettings
                 api={api}
@@ -908,10 +1051,27 @@ function AppShell({
                         onChange={(e) => setSearch(e.target.value)}
                       />
                     </div>
-                    <AppSelect
-                      apps={apps.data || []}
-                      value={current}
-                      onChange={setSelected}
+                    <MultiSelect
+                      ariaLabel="卡密状态"
+                      values={licenseStates}
+                      onChange={setLicenseStates}
+                      placeholder="全部状态"
+                      options={[
+                        { value: "UNUSED", label: "未使用" },
+                        { value: "USED", label: "已使用" },
+                        { value: "BANNED", label: "已封禁" },
+                        { value: "EXPIRED", label: "已过期" },
+                      ]}
+                    />
+                    <MultiSelect
+                      ariaLabel="应用筛选"
+                      values={licenseApps}
+                      onChange={setLicenseApps}
+                      placeholder="全部应用"
+                      options={(apps.data || []).map((a) => ({
+                        value: a.appid,
+                        label: a.name + " · " + a.appid,
+                      }))}
                     />
                   </div>
                 </div>
@@ -948,7 +1108,7 @@ function AppShell({
                   )
                 ) : (
                   <div className="table-scroll">
-                    <table>
+                    <ResponsiveTable>
                       <thead>
                         <tr>
                           {["操作", "操作者", "目标", "结果", "IP", "时间"].map(
@@ -972,7 +1132,7 @@ function AppShell({
                           </tr>
                         ))}
                       </tbody>
-                    </table>
+                    </ResponsiveTable>
                     {!audit.data?.length && (
                       <Empty
                         text={audit.isLoading ? "加载中…" : "暂无审计记录"}
@@ -985,7 +1145,7 @@ function AppShell({
           </motion.div>
         </div>
         <div className="footer fixed-footer">
-          <span>© TingCloud Verifier</span>
+          <span>© ZCT-SLMS</span>
         </div>
       </main>
       {modal && (
@@ -1015,7 +1175,7 @@ function AppShell({
                     .writeText(result)
                     .then(() =>
                       window.dispatchEvent(
-                        new CustomEvent("tcv:success", {
+                        new CustomEvent("zct_slms:success", {
                           detail: "已复制到剪贴板",
                         }),
                       ),
@@ -1139,7 +1299,7 @@ function LicenseTable({
         <div className="error">{error.message}</div>
       ) : (
         <>
-          <table>
+          <ResponsiveTable>
             <thead>
               {table.getHeaderGroups().map((g) => (
                 <tr key={g.id}>
@@ -1165,7 +1325,7 @@ function LicenseTable({
                   </tr>
                 ))}
             </tbody>
-          </table>
+          </ResponsiveTable>
           {!table.getRowModel().rows.length && (
             <Empty text={loading ? "加载中…" : "暂无卡密记录"} />
           )}
@@ -1240,6 +1400,58 @@ function CreateApp({
     </form>
   );
 }
+function LicenseBalance({
+  appId,
+  card = false,
+}: {
+  appId: string;
+  card?: boolean;
+}) {
+  const session = getSession();
+  const q = useQuery({
+    queryKey: ["license-balance", session?.user_type, session?.user_id, appId],
+    queryFn: () =>
+      api<{
+        available: number | null;
+        owner_username?: string;
+        cost_per_license: number;
+      }>("auth/balance", appId ? { app_id: appId } : {}),
+    staleTime: 10000,
+    refetchInterval: 30000,
+  });
+  const amount =
+    q.data?.available === -1
+      ? "不限额"
+      : q.data?.available == null
+        ? "—"
+        : q.data.available;
+  const hint = q.isError
+    ? (q.error as Error).message
+    : q.data?.owner_username
+      ? "所属用户：" + q.data.owner_username
+      : "每张卡密消耗 1 余额";
+  return card ? (
+    <div className="stat panel">
+      <div className="stat-top">
+        <div className="stat-icon purple">
+          <KeyRound />
+        </div>
+        <span>实时</span>
+      </div>
+      <div className="stat-label">卡密余额</div>
+      <div className="stat-number">{amount}</div>
+      <div className="stat-hint">{hint}</div>
+    </div>
+  ) : (
+    <div className="license-credit-summary">
+      <div>
+        <span>可用卡密余额</span>
+        <strong>{amount}</strong>
+      </div>
+      <small>{hint}</small>
+    </div>
+  );
+}
 function CreateLicense({
   apps,
   current,
@@ -1251,6 +1463,7 @@ function CreateLicense({
   pending: boolean;
   onSubmit: (b: Record<string, string | number>) => void;
 }) {
+  const [appId, setAppId] = useState(current || apps[0]?.appid || "");
   return (
     <form
       onSubmit={(e) => {
@@ -1265,11 +1478,13 @@ function CreateLicense({
         });
       }}
     >
+      <LicenseBalance appId={appId} />
       <label>
         所属应用
         <CustomSelect
           name="app_id"
-          defaultValue={current}
+          value={appId}
+          onChange={setAppId}
           options={apps.map((a) => ({ value: a.appid, label: a.name }))}
         />
       </label>
@@ -1471,9 +1686,9 @@ function SuccessPopup() {
       window.clearTimeout(timer);
       timer = window.setTimeout(() => setMessage(""), 2200);
     };
-    window.addEventListener("tcv:success", f);
+    window.addEventListener("zct_slms:success", f);
     return () => {
-      window.removeEventListener("tcv:success", f);
+      window.removeEventListener("zct_slms:success", f);
       window.clearTimeout(timer);
     };
   }, []);
@@ -1489,8 +1704,32 @@ function SuccessPopup() {
     </div>
   ) : null;
 }
+function SavedAccounts() {
+  const [accounts, setAccounts] = useState<Array<Session & {nickname?: string}>>(() => {
+    try { const rows = JSON.parse(localStorage.getItem("zct_slms-accounts") || "[]"); return Array.isArray(rows) ? rows.filter(a => a?.token && a?.username) : []; } catch { return []; }
+  });
+  const [adding, setAdding] = useState(() => new URLSearchParams(location.search).has("add"));
+  const remove = (token: string) => {
+    const next = accounts.filter(a => a.token !== token);
+    localStorage.setItem("zct_slms-accounts", JSON.stringify(next));
+    if (getSession()?.token === token) localStorage.removeItem("zct_slms-session");
+    setAccounts(next);
+  };
+  if (adding) return <><Login onLogin={() => window.location.assign("/")} /><a className="saved-account-back" href="/?accounts=1">返回已保存的账号</a></>;
+  return <div className="login-page"><div className="login-brand">ZCT-SLMS</div><div className="login-card"><h1>已保存的账号</h1><div className="saved-account-list">{accounts.map(a => <div className="saved-account-row" key={a.token}><button onClick={() => {localStorage.setItem("zct_slms-session", JSON.stringify(a)); window.location.assign("/");}}><strong>{a.nickname || a.username}</strong><small>{a.username}</small></button><button className="saved-account-remove" aria-label={`移除账号 ${a.username}`} onClick={() => remove(a.token)}>删除</button></div>)}</div><button className="primary" onClick={() => window.location.assign("/?accounts=1&add=1")}>添加账号</button></div><div className="login-footer">© ZCT-SLMS</div></div>;
+}
 function Root() {
   const [session, setSession] = useState(getSession);
+  useEffect(() => {
+    const changed = (event: StorageEvent) => {
+      if (event.key === "zct_slms-session") {
+        client.clear();
+        setSession(getSession());
+      }
+    };
+    window.addEventListener("storage", changed);
+    return () => window.removeEventListener("storage", changed);
+  }, []);
   return (
     <QueryClientProvider client={client}>
       <SuccessPopup />
@@ -1503,7 +1742,7 @@ function Root() {
           setSession(s);
         }}
       />
-      {session ? (
+      {(new URLSearchParams(location.search).has("accounts") || (!session && location.pathname === "/" && (() => { try { return JSON.parse(localStorage.getItem("zct_slms-accounts") || "[]").length > 0; } catch { return false; } })())) ? <SavedAccounts /> : session ? (
         <OnboardingGate
           api={api}
           session={session}
@@ -1524,7 +1763,12 @@ function Root() {
       ) : location.pathname === "/forgot-password" ? (
         <RecoveryPage api={api} />
       ) : (
-        <Login onLogin={s=>{client.clear();setSession(s)}} />
+        <Login
+          onLogin={(s) => {
+            client.clear();
+            setSession(s);
+          }}
+        />
       )}
     </QueryClientProvider>
   );

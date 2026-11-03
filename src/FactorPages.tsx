@@ -1,3 +1,5 @@
+import { BackLink } from "./BackLink";
+import { SecurityTicketRequest } from "./SecurityTickets";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { QRCodeSVG } from "qrcode.react";
@@ -6,8 +8,9 @@ import { performPasskey } from "./Security";
 import { requestPassword } from "./PasswordPrompt";
 type Api = <T>(p: string, b?: Record<string, any>, m?: string) => Promise<T>;
 const done = (detail: string) =>
-  window.dispatchEvent(new CustomEvent("tcv:success", { detail }));
+  window.dispatchEvent(new CustomEvent("zct_slms:success", { detail }));
 export function FactorPage({ api, kind }: { api: Api; kind: string }) {
+  const ticketMethod = kind === "passkeys" ? "passkey" : kind === "totp" ? "totp" : "recovery";
   const qc = useQueryClient(),
     q = useQuery({
       queryKey: ["account-factors"],
@@ -30,7 +33,7 @@ export function FactorPage({ api, kind }: { api: Api; kind: string }) {
       setSetup(null);
       setError("绑定二维码已过期，请重新开始");
     }, 300000);
-    return () => clearTimeout(timer);
+  return () => clearTimeout(timer);
   }, [setup]);
   async function act(action: string, extra: Record<string, any> = {}) {
     setBusy(true);
@@ -57,9 +60,7 @@ export function FactorPage({ api, kind }: { api: Api; kind: string }) {
   }
   return (
     <section className="panel management-card factor-page">
-      <a className="details-back" href="/account">
-        ← 返回账号安全
-      </a>
+      <BackLink href="/account">返回账号安全</BackLink>
       <h2>
         {kind === "totp"
           ? "动态令牌"
@@ -81,6 +82,7 @@ export function FactorPage({ api, kind }: { api: Api; kind: string }) {
               </div>
               {!q.data.totp_enabled && !setup && (
                 <div className="form-actions">
+                  <SecurityTicketRequest api={api} inline method={ticketMethod} />
                   <button
                     className="primary"
                     disabled={busy || !q.data.totp_available}
@@ -139,6 +141,7 @@ export function FactorPage({ api, kind }: { api: Api; kind: string }) {
                     />
                   </label>
                   <div className="form-actions">
+                  <SecurityTicketRequest api={api} inline method={ticketMethod} />
                     <button
                       className={setup ? "primary" : "danger-button"}
                       disabled={busy}
@@ -241,6 +244,7 @@ export function FactorPage({ api, kind }: { api: Api; kind: string }) {
                   />
                 </label>
                 <div className="form-actions">
+                  <SecurityTicketRequest api={api} inline method={ticketMethod} />
                   <button
                     className="primary"
                     disabled={
@@ -273,6 +277,11 @@ export function FactorPage({ api, kind }: { api: Api; kind: string }) {
                   void act("recovery-regenerate");
                 }}
               >
+                {q.data.recovery_reset_pending && (
+                  <p className="muted">
+                    工单已核验，可验证身份后生成新的恢复码。
+                  </p>
+                )}
                 {q.data.totp_enabled && (
                   <label>
                     当前动态验证码
@@ -295,9 +304,13 @@ export function FactorPage({ api, kind }: { api: Api; kind: string }) {
                   />
                 </label>
                 <div className="form-actions">
+                  <SecurityTicketRequest api={api} inline method={ticketMethod} />
                   <button
                     className="primary"
-                    disabled={busy || (!code && !recovery)}
+                    disabled={
+                      busy ||
+                      (!q.data.recovery_reset_pending && !code && !recovery)
+                    }
                   >
                     重新生成恢复码
                   </button>
@@ -314,6 +327,7 @@ export function FactorPage({ api, kind }: { api: Api; kind: string }) {
           )}
         </>
       )}
+
       {error && <p className="error">{error}</p>}
       {removeTarget && (
         <Dialog

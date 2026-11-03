@@ -1,44 +1,66 @@
-# TingCloud Verifier WebUI
+# ZCT-SLMS WebUI
 
-React 19 + TypeScript 管理界面，连接 TingCloudVerifier 的 `/api/v1`。会话保存在当前浏览器标签页的 sessionStorage；关闭标签页后需重新登录。
+软件授权验证平台管理界面，连接 ZCT-SLMS 后端。
 
-## Docker
+## 技术栈
 
-确保后端已启动并允许容器访问。默认代理至宿主机 `http://host.docker.internal:17112`，按后端实际监听地址修改：
+React 19 · TypeScript · Vite · Tailwind CSS · Lucide · Motion · React Router · TanStack Query / Table
 
-```powershell
-$env:BACKEND_URL="http://host.docker.internal:17112"
+## 快速开始
+
+安装 Docker，并启动后端。在项目根目录执行：
+
+```sh
+cp .env.example .env
 docker compose up -d --build
 ```
 
-访问 http://localhost:17316。可用 `WEB_PORT` 修改暴露端口。后端如果也在 Docker 网络中，使用其服务名和容器端口作为 `BACKEND_URL`，并将两者接入同一 Docker 网络。`docker compose down` 停止。
+访问 `http://localhost:17316`。首次管理员账号与密码从后端启动日志获取。
 
-## 开发
+## 配置
 
-```powershell
-npm install --no-audit --no-fund
-$env:VITE_BACKEND_URL="http://localhost:17112"
-npm run dev
-```
+在 `.env` 中设置：
 
-开发服务器默认使用 `17316`，将 `/api` 代理至后端。确认后端配置实际端口及监听地址。UI 不内置后端，也不创建演示数据。
+| 变量 | 说明 |
+| --- | --- |
+| `WEB_PORT` | 前端端口，默认 `17316` |
+| `BACKEND_URL` | 容器可访问的后端地址，默认 `http://host.docker.internal:17112` |
+| `BACKEND_FORWARD_MODE` | `proxy` 代理、`redirect` 重定向、`off` 关闭 API 访问 |
+| `BACKEND_PUBLIC_URL` | 重定向模式下浏览器可访问的后端地址 |
 
-## 功能与限制
+`/api/v1/ping` 转发到后端的 `/api/v1/ping`，保留路径和查询参数。推荐使用代理模式；关闭 API 访问后，登录与管理功能也无法连接后端。
 
-支持管理员、Owner、子用户和支持账号。包含应用详情与介绍编辑、卡密管理、用户与子用户管理、邀请码和余额码、工单及内容审查、平台与安全配置。账号安全提供独立的动态令牌（二维码）、通行密钥、恢复码页面；管理员可开启双重验证和各项密码恢复方式。支持账号仅能处理工单及查看公开内容审查。
+后端同在 Docker 网络时，使用服务名和容器端口作为 `BACKEND_URL`。本地 `.env` 不提交到 Git。
 
-概览统计基于当前选中应用的卡密列表；不展示虚构历史趋势。新用户余额默认为 0；子用户生成的卡密同步扣主用户余额。明文卡密、邀请码、余额码及恢复码只在生成结果中显示，请及时保存。敏感操作先提交，再弹窗确认当前密码。具体权限和配置由后端校验。
+修改配置或更新代码后执行 `docker compose up -d --build`；停止使用 `docker compose down`。
 
-短信、SMTP、Microsoft、GitHub 和第三方人机验证需要管理员填写真实服务凭据及回调地址；通行密钥要求 HTTPS 或本机 localhost。升级后端时请备份数据库、配置和认证主密钥，详见后端 `docs/admin-security.md`。
+国内镜像构建：
 
-
-### 国内镜像构建
-
-如 Docker Hub 或 npm 下载缓慢，可使用构建参数指定镜像：
-
-```powershell
+```sh
 docker compose build --build-arg NODE_IMAGE=docker.1ms.run/library/node:22-alpine --build-arg NGINX_IMAGE=docker.1ms.run/library/nginx:alpine --build-arg NPM_REGISTRY=https://registry.npmmirror.com/
 docker compose up -d --no-build
 ```
 
-镜像站可用性可能变化，也可将上述参数替换为其他可访问的镜像。构建完成后正常启动无需再次指定参数。
+镜像地址可替换为部署环境中可用的镜像源。
+
+## 本地开发
+
+```sh
+npm ci
+npm run dev
+```
+
+默认端口 `17316`，开发代理连接 `http://localhost:17112`。通过 `.env.local` 设置 `VITE_BACKEND_URL` 可修改开发后端地址。
+
+## 主要功能
+
+- 应用、卡密、用户、子用户、余额与兑换码管理。
+- 工单、Markdown 和图片材料、支持工作台及内容审查。
+- 平台配置、第三方登录、通行密钥、动态令牌与恢复码。
+- 多账号切换、移动端侧边栏和响应式列表。
+
+功能和权限由后端控制；短信、邮件、第三方登录等服务需由管理员配置。通行密钥需使用 HTTPS 或 localhost。
+
+## 许可证
+
+见 [LICENSE](LICENSE)。

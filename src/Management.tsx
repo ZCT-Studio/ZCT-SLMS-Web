@@ -1,8 +1,11 @@
+import { ResponsiveTable } from "./ResponsiveTable";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Pencil, Plus, RefreshCw, Search } from "lucide-react";
 import { Dialog, AppDanger } from "./Extras";
 import { EncodingSettings } from "./ApplicationViews";
+import { HeartbeatSettings } from "./Heartbeat";
+import { AccountActions } from "./AccountActions";
 import { useEffect } from "react";
 import { CustomSelect, Toggle } from "./Select";
 type App = {
@@ -14,6 +17,9 @@ type App = {
   appid: string;
   name: string;
   binding_mode: string;
+  dec_mode?: string;
+  sign_enable?: number;
+  notice?: string;
 };
 type Api = <T>(
   p: string,
@@ -35,6 +41,7 @@ type Field = {
   type?: string;
   options?: { value: string; label: string }[];
   required?: boolean;
+  value?: string;
 };
 function Form({
   title,
@@ -64,7 +71,7 @@ function Form({
               ) as Record<string, string>,
             );
             window.dispatchEvent(
-              new CustomEvent("tcv:success", { detail: "操作成功" }),
+              new CustomEvent("zct_slms:success", { detail: "操作成功" }),
             );
           } catch (x) {
             setError((x as Error).message);
@@ -79,14 +86,22 @@ function Form({
             {f.options ? (
               <CustomSelect
                 name={f.name}
-                defaultValue={f.options[0]?.value}
+                defaultValue={f.value ?? f.options[0]?.value}
                 options={f.options}
+              />
+            ) : f.type === "textarea" ? (
+              <textarea
+                name={f.name}
+                rows={5}
+                defaultValue={f.value || ""}
+                required={f.required}
               />
             ) : (
               <input
                 name={f.name}
                 type={f.type || "text"}
                 required={f.required}
+                defaultValue={f.value}
               />
             )}
           </label>
@@ -139,13 +154,16 @@ export function Management({
     await api(p, b, "POST");
     await qc.invalidateQueries();
   };
+  const currentApp = apps.find((a) => a.appid === current);
+  const [signBusy, setSignBusy] = useState(false),
+    [signError, setSignError] = useState("");
   useEffect(() => {
     const f = () => {
       setDialogError("");
       setCreateOpen(true);
     };
-    window.addEventListener("tcv:create-user", f);
-    return () => window.removeEventListener("tcv:create-user", f);
+    window.addEventListener("zct_slms:create-user", f);
+    return () => window.removeEventListener("zct_slms:create-user", f);
   }, []);
   const [search, setSearch] = useState(""),
     [createOpen, setCreateOpen] = useState(false),
@@ -169,23 +187,25 @@ export function Management({
       <>
         <section className="panel">
           <div className="table-toolbar">
-            <div>
-              <h2>用户列表</h2>
-              <p>按 UID、用户名或昵称筛选</p>
-            </div>
             <div className="user-toolbar">
               <div className="search">
                 <Search size={16} />
                 <input
                   placeholder="搜索 UID、用户名、昵称"
+                  aria-label="搜索用户"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
               </div>
             </div>
           </div>
+          {users.isError && (
+            <p className="error table-error">
+              {(users.error as Error).message}
+            </p>
+          )}
           <div className="table-scroll">
-            <table>
+            <ResponsiveTable>
               <thead>
                 <tr>
                   <th>UID</th>
@@ -194,6 +214,7 @@ export function Management({
                   <th>余额</th>
                   <th>状态</th>
                   <th>创建时间</th>
+                  <th>操作</th>
                 </tr>
               </thead>
               <tbody>
@@ -207,6 +228,7 @@ export function Management({
                         {u.balance === -1 ? "不限额" : u.balance}
                         <button
                           className="icon-button"
+                          aria-label={`修改 ${u.username} 的余额`}
                           onClick={() => {
                             setDialogError("");
                             setBalance({
@@ -226,10 +248,24 @@ export function Management({
                         "zh-CN",
                       )}
                     </td>
+                    <td>
+                      <AccountActions api={api} user={u} role="USER" />
+                    </td>
                   </tr>
                 ))}
+                {!users.isError && !rows.length && (
+                  <tr>
+                    <td colSpan={7} className="empty-cell">
+                      {users.isLoading
+                        ? "正在加载用户…"
+                        : search
+                          ? "没有符合条件的用户"
+                          : "暂无用户"}
+                    </td>
+                  </tr>
+                )}
               </tbody>
-            </table>
+            </ResponsiveTable>
           </div>
         </section>
         {createOpen && (
@@ -340,6 +376,7 @@ export function Management({
               ["binding", "绑定与安全"],
               ["notice", "公告"],
               ["version", "版本通道"],
+              ["heartbeat", "心跳验证"],
               ["operations", "应用操作"],
             ].map(([v, l]) => (
               <button
@@ -361,11 +398,13 @@ export function Management({
             {page === "binding" && (
               <>
                 <Form
+                  key={current + ":" + currentApp?.binding_mode}
                   title="绑定方式"
                   fields={[
                     {
                       name: "binding_mode",
                       label: "绑定模式",
+                      value: currentApp?.binding_mode,
                       options: [
                         { value: "NONE", label: "无" },
                         { value: "IP", label: "IP" },
@@ -381,31 +420,74 @@ export function Management({
                   <div className="setting-row">
                     <div>
                       <strong>签名校验</strong>
-                      <small>{sign ? "已启用" : "已关闭"}</small>
+                      <small>
+                        {currentApp?.sign_enable === undefined
+                          ? "更新 Core 后可读取当前状态"
+                          : currentApp.sign_enable
+                            ? "已启用"
+                            : "已关闭"}
+                      </small>
                     </div>
                     <Toggle
                       label="请求签名"
-                      checked={sign}
+                      checked={!!currentApp?.sign_enable}
+                      disabled={
+                        signBusy || currentApp?.sign_enable === undefined
+                      }
                       onChange={async (next) => {
-                        await post("app/sign-enable", {
-                          app_id: current,
-                          sign_enable: next ? "1" : "0",
-                        });
-                        setSign(next);
+                        try {
+                          setSignBusy(true);
+                          setSignError("");
+                          await post("app/sign-enable", {
+                            app_id: current,
+                            sign_enable: next ? "1" : "0",
+                          });
+                          window.dispatchEvent(
+                            new CustomEvent("zct_slms:success", {
+                              detail: "签名设置已保存",
+                            }),
+                          );
+                        } catch (x) {
+                          setSignError((x as Error).message);
+                        } finally {
+                          setSignBusy(false);
+                        }
                       }}
                     />
                   </div>
+                  {signError && <p className="error">{signError}</p>}
                 </section>
-                <EncodingSettings api={api} current={current} />
+                <EncodingSettings
+                  api={api}
+                  current={current}
+                  currentMode={currentApp?.dec_mode}
+                />
               </>
             )}
-            {page === "notice" && (
-              <Form
-                title="更新应用公告"
-                fields={[{ name: "notice", label: "公告内容" }]}
-                submit={(v) => post("app/notice", { app_id: current, ...v })}
-              />
-            )}{" "}
+            {page === "heartbeat" && (
+              <HeartbeatSettings api={api} current={current} />
+            )}
+            {page === "notice" &&
+              (currentApp?.notice === undefined ? (
+                <section className="panel management-card">
+                  当前 Core 未返回公告内容，请更新 Core
+                  后编辑，避免覆盖现有公告。
+                </section>
+              ) : (
+                <Form
+                  key={current + ":" + currentApp?.notice}
+                  title="更新应用公告"
+                  fields={[
+                    {
+                      name: "notice",
+                      label: "公告内容",
+                      type: "textarea",
+                      value: currentApp?.notice,
+                    },
+                  ]}
+                  submit={(v) => post("app/notice", { app_id: current, ...v })}
+                />
+              ))}{" "}
             {page === "version" && (
               <>
                 <Form

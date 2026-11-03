@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { HelpTip } from "./Help";
+import { Shuffle } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { CustomSelect, Toggle } from "./Select";
 import { IdentityAdmin } from "./Identity";
@@ -20,17 +22,26 @@ export const modes = [
 export function EncodingSettings({
   api,
   current,
+  currentMode,
 }: {
   api: Api;
   current: string;
+  currentMode?: string;
 }) {
   const cfg = useQuery({
     queryKey: ["system-configs"],
     queryFn: () => api<{ allowed_encoding_modes: string }>("system/configs"),
   });
-  const [mode, setMode] = useState("NONE"),
+  const qc = useQueryClient();
+  const [mode, setMode] = useState(currentMode || ""),
+    [keyValue, setKeyValue] = useState(""),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
+  useEffect(() => {
+    setMode(currentMode || "");
+    setKeyValue("");
+    setError("");
+  }, [current, currentMode]);
   const needsKey = ["AES128-GCM", "AES256-GCM", "CHACHA20-POLY1305"].includes(
     mode,
   );
@@ -54,8 +65,10 @@ export function EncodingSettings({
               },
               "POST",
             );
+            await qc.invalidateQueries({ queryKey: ["apps"] });
+            setKeyValue("");
             window.dispatchEvent(
-              new CustomEvent("tcv:success", { detail: "编码设置已保存" }),
+              new CustomEvent("zct_slms:success", { detail: "编码设置已保存" }),
             );
           } catch (x) {
             setError((x as Error).message);
@@ -68,39 +81,84 @@ export function EncodingSettings({
           编码模式
           <CustomSelect
             value={mode}
-            onChange={setMode}
-            options={modes.filter((m) =>
-              (
-                cfg.data?.allowed_encoding_modes ||
-                modes.map((m) => m.value).join(",")
+            placeholder={
+              currentMode === undefined
+                ? "请选择新模式（当前状态需更新 Core）"
+                : "请选择编码模式"
+            }
+            onChange={(v) => {
+              setMode(v);
+              setKeyValue("");
+            }}
+            options={modes
+              .filter(
+                (m) =>
+                  m.value === currentMode ||
+                  (
+                    cfg.data?.allowed_encoding_modes ||
+                    modes.map((m) => m.value).join(",")
+                  )
+                    .split(",")
+                    .includes(m.value),
               )
-                .split(",")
-                .includes(m.value),
-            )}
+              .map((m) => ({
+                ...m,
+                disabled: !(
+                  cfg.data?.allowed_encoding_modes ||
+                  modes.map((x) => x.value).join(",")
+                )
+                  .split(",")
+                  .includes(m.value),
+              }))}
           />
         </label>
         {needsKey && (
           <>
             <label>
-              加密密钥
-              <input
-                name="key"
-                type="password"
-                required
-                pattern={
-                  mode === "AES128-GCM" ? "[0-9a-fA-F]{32}" : "[0-9a-fA-F]{64}"
-                }
-              />
+              新加密密钥{" "}
+              <HelpTip title="密钥格式与随机生成">
+                {mode === "AES128-GCM"
+                  ? "16字节密钥，32位十六进制字符。"
+                  : "32字节密钥，64位十六进制字符。"}{" "}
+                随机按钮在浏览器本地生成，保存应用配置时才提交。
+                当前密钥不会回传；保存后替换为本次输入的密钥。
+              </HelpTip>
+              <div className="key-generator">
+                <input
+                  name="key"
+                  type="password"
+                  value={keyValue}
+                  onChange={(e) => setKeyValue(e.target.value)}
+                  required
+                  pattern={
+                    mode === "AES128-GCM"
+                      ? "[0-9a-fA-F]{32}"
+                      : "[0-9a-fA-F]{64}"
+                  }
+                />
+                <button
+                  type="button"
+                  className="icon-button"
+                  aria-label="随机生成符合当前算法的密钥"
+                  onClick={() => {
+                    const bytes = crypto.getRandomValues(
+                      new Uint8Array(mode === "AES128-GCM" ? 16 : 32),
+                    );
+                    setKeyValue(
+                      Array.from(bytes, (b) =>
+                        b.toString(16).padStart(2, "0"),
+                      ).join(""),
+                    );
+                  }}
+                >
+                  <Shuffle size={17} />
+                </button>
+              </div>
             </label>
-            <p className="muted">
-              {mode === "AES128-GCM"
-                ? "16 字节密钥：32 位十六进制字符（0–9、a–f）。"
-                : "32 字节密钥：64 位十六进制字符（0–9、a–f）。"}
-            </p>
           </>
         )}
         {error && <p className="error">{error}</p>}
-        <button className="primary" disabled={busy}>
+        <button className="primary" disabled={busy || !mode}>
           保存
         </button>
       </form>
@@ -118,15 +176,20 @@ export function AppBrowser({
   }[];
 }) {
   const [pref, setPref] = useState(
-    () => localStorage.getItem("tcv-app-layout") || "auto",
+    () => localStorage.getItem("zct_slms-app-layout") || "auto",
   );
   useEffect(() => {
-    const f = () => setPref(localStorage.getItem("tcv-app-layout") || "auto");
-    window.addEventListener("tcv:layout", f);
-    return () => window.removeEventListener("tcv:layout", f);
+    const f = () => setPref(localStorage.getItem("zct_slms-app-layout") || "auto");
+    window.addEventListener("zct_slms:layout", f);
+    return () => window.removeEventListener("zct_slms:layout", f);
   }, []);
   return (
     <div className={"app-browser view-" + pref}>
+      {!apps.length && (
+        <div className="panel empty-state">
+          暂无应用，可通过“创建应用”添加。
+        </div>
+      )}
       {apps.map((a) => (
         <a
           className="panel app-summary"
@@ -161,7 +224,7 @@ export function SecuritySettings({ api }: { api: Api }) {
       await api(path, body, "POST");
       await qc.invalidateQueries({ queryKey: ["system-configs"] });
       window.dispatchEvent(
-        new CustomEvent("tcv:success", { detail: "设置已保存" }),
+        new CustomEvent("zct_slms:success", { detail: "设置已保存" }),
       );
     } catch (x) {
       setError((x as Error).message);

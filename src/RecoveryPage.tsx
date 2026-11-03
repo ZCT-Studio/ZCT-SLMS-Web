@@ -1,3 +1,6 @@
+import { TicketEditor } from "./TicketMarkdown";
+import { BackLink } from "./BackLink";
+import { securityNames } from "./SecurityTickets";
 import { useState } from "react";
 import { CustomSelect } from "./Select";
 import { useHuman, performPasskey, authenticateFactors } from "./Security";
@@ -10,6 +13,7 @@ const names: Record<string, string> = {
   totp: "动态令牌",
   passkey: "通行密钥",
   ticket: "人工工单",
+  security_ticket: "账号安全工单（解绑或重置登录方式）",
 };
 export function InviteRegistration({
   api,
@@ -115,7 +119,7 @@ export function RecoveryPage({ api }: { api: Api }) {
     [busy, setBusy] = useState(false),
     [sent, setSent] = useState(false);
   const account = { username, role },
-    ticket = method === "ticket",
+    ticket = method === "ticket" || method === "security_ticket",
     delivery = ticket ? contactMethod : method;
   const recipient =
     delivery === "email" && !ticket && !target.includes("@")
@@ -129,12 +133,12 @@ export function RecoveryPage({ api }: { api: Api }) {
     setBusy(true);
     setError("");
     try {
-      const result=await api<any>(
+      const result = await api<any>(
         p,
         { ...account, ...body, ...(humanCheck ? human.fields : {}) },
         "POST",
       );
-      return result??{success:true};
+      return result ?? { success: true };
     } catch (x) {
       setError((x as Error).message);
       return null;
@@ -146,13 +150,12 @@ export function RecoveryPage({ api }: { api: Api }) {
   const methodOptions = [
     ...(info?.methods || []),
     ...(info?.ticket_allowed ? ["ticket"] : []),
+    ...(info?.security_ticket_allowed ? ["security_ticket"] : []),
   ];
   return (
     <div className="login-page">
       <section className="login-card recovery-card">
-        <a className="details-back" href="/">
-          ← 返回登录
-        </a>
+        <BackLink href="/">返回登录</BackLink>
         <h1>找回密码</h1>
         {receipt ? (
           <>
@@ -184,7 +187,7 @@ export function RecoveryPage({ api }: { api: Api }) {
               });
               if (r !== null) {
                 window.dispatchEvent(
-                  new CustomEvent("tcv:success", {
+                  new CustomEvent("zct_slms:success", {
                     detail: "密码已重置，请重新登录",
                   }),
                 );
@@ -227,20 +230,40 @@ export function RecoveryPage({ api }: { api: Api }) {
               e.preventDefault();
               const f = new FormData(e.currentTarget),
                 r = await call("tickets/create", {
-                  category: "FORGOT",
+                  category:
+                    method === "security_ticket" ? "SECURITY" : "FORGOT",
+                  security_method: String(f.get("security_method") || ""),
+                  security_action: "RESET",
                   contact_token: contactToken,
-                  title: "找回密码：" + username,
+                  title:
+                    (method === "security_ticket"
+                      ? "账号安全恢复："
+                      : "找回密码：") + username,
                   body: String(f.get("body")),
                 });
               if (r) setReceipt(r);
             }}
           >
             <p className="muted">
-              新联系方式已验证。请提供能说明账号归属的申诉材料，支持人员核验后会将临时密码发送给你，首次使用后需设置新密码。
+              {method === "security_ticket"
+                ? "新联系方式已验证。请提供账号归属材料，工作人员核验后仅移除申请中的登录方式。新绑定由您重新登录后设置，工单不会展示密钥或恢复码。"
+                : "新联系方式已验证。请提供账号归属材料，核验后会向您发送临时密码，首次登录后需设置新密码。"}
             </p>
+            {method === "security_ticket" && (
+              <label>
+                需要重置的登录方式
+                <CustomSelect
+                  name="security_method"
+                  defaultValue="totp"
+                  options={Object.entries(securityNames).map(
+                    ([value, label]) => ({ value, label }),
+                  )}
+                />
+              </label>
+            )}
             <label>
               申诉材料
-              <textarea
+              <TicketEditor contactToken={contactToken}
                 name="body"
                 rows={8}
                 minLength={10}
@@ -341,7 +364,7 @@ export function RecoveryPage({ api }: { api: Api }) {
                     {ticket && (
                       <>
                         <p className="muted">
-                          此账号尚未绑定邮箱或手机号。请先验证一个新的手机号或邮箱，然后提交工单。
+                          请先验证一个可用的手机号或邮箱，再提交归属证明；验证联系方式不代表账号审核已通过。
                         </p>
                         <label>
                           接收临时密码的方式
@@ -403,7 +426,12 @@ export function RecoveryPage({ api }: { api: Api }) {
                                 "auth/recovery/code",
                                 {
                                   method: delivery,
-                                  kind: ticket ? "ticket" : "reset",
+                                  kind:
+                                    method === "security_ticket"
+                                      ? "security-ticket"
+                                      : ticket
+                                        ? "ticket"
+                                        : "reset",
                                   target: recipient,
                                 },
                                 true,
@@ -412,7 +440,7 @@ export function RecoveryPage({ api }: { api: Api }) {
                                 setChallenge(r.challenge_id);
                                 setSent(true);
                                 window.dispatchEvent(
-                                  new CustomEvent("tcv:success", {
+                                  new CustomEvent("zct_slms:success", {
                                     detail: "验证码已发送",
                                   }),
                                 );
@@ -539,7 +567,39 @@ export function RecoveryPage({ api }: { api: Api }) {
             )}
           </>
         )}
-        {!receipt&&!info&&!resetToken&&!contactToken&&<details className="guest-ticket"><summary>查询已有工单</summary><form onSubmit={e=>{e.preventDefault();const f=new FormData(e.currentTarget);setReceipt({id:String(f.get("id")),access_token:String(f.get("token"))})}}><label>工单号<input name="id" minLength={32} maxLength={32} required/></label><label>查询令牌<input name="token" minLength={64} maxLength={64} autoComplete="off" required/></label><div className="form-actions"><button className="secondary">查询工单</button></div></form></details>}
+        {!receipt && !info && !resetToken && !contactToken && (
+          <details className="guest-ticket">
+            <summary>查询已有工单</summary>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const f = new FormData(e.currentTarget);
+                setReceipt({
+                  id: String(f.get("id")),
+                  access_token: String(f.get("token")),
+                });
+              }}
+            >
+              <label>
+                工单号
+                <input name="id" minLength={32} maxLength={32} required />
+              </label>
+              <label>
+                查询令牌
+                <input
+                  name="token"
+                  minLength={64}
+                  maxLength={64}
+                  autoComplete="off"
+                  required
+                />
+              </label>
+              <div className="form-actions">
+                <button className="secondary">查询工单</button>
+              </div>
+            </form>
+          </details>
+        )}
         {error && <p className="error">{error}</p>}
       </section>
     </div>

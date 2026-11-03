@@ -10,4 +10,6 @@ RUN npm run build
 FROM ${NGINX_IMAGE}
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY nginx.conf.template /etc/nginx/templates/default.conf.template
+COPY 19-forward.sh /docker-entrypoint.d/19-forward.sh
+RUN sed -i 's/\r$//' /docker-entrypoint.d/19-forward.sh && chmod +x /docker-entrypoint.d/19-forward.sh
 EXPOSE 80

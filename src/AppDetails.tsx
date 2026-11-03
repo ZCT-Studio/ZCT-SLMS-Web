@@ -1,3 +1,4 @@
+import { BackLink } from "./BackLink";
 import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
@@ -9,6 +10,8 @@ import {
   KeyRound,
   Settings,
   ShieldCheck,
+  Pencil,
+  RefreshCw,
 } from "lucide-react";
 import { Dialog } from "./Extras";
 import { useQueryClient } from "@tanstack/react-query";
@@ -39,7 +42,7 @@ const bindingLabels: Record<string, string> = {
   IP_AND_DEVICE: "设备和 IP",
 };
 const success = (detail: string) =>
-  window.dispatchEvent(new CustomEvent("tcv:success", { detail }));
+  window.dispatchEvent(new CustomEvent("zct_slms:success", { detail }));
 
 export function AppDetails({
   app,
@@ -104,9 +107,16 @@ export function AppDetails({
   const owner = app.owner_username || app.creator?.replace(/\*$/, "") || "—";
   return (
     <div className="application-details">
-      <a className="details-back" href="/apps">
-        <ArrowLeft size={15} /> 返回应用管理
-      </a>
+      <div className="details-toolbar">
+        <BackLink href="/apps">返回应用管理</BackLink>
+        <button
+          className="secondary"
+          onClick={() => void qc.invalidateQueries({ queryKey: ["apps"] })}
+        >
+          <RefreshCw size={15} />
+          刷新
+        </button>
+      </div>
       <section className="panel details-overview">
         <div className="details-heading">
           <div className="details-icon">
@@ -125,20 +135,22 @@ export function AppDetails({
           </div>
         </div>
         <div className="details-description">
-          <h3>应用介绍</h3>
+          <h3 className="intro-heading">
+            应用介绍
+            {role !== "SUBUSER" && role !== "SUPPORT" && (
+              <button
+                className="icon-button"
+                aria-label="编辑应用资料"
+                onClick={() => {
+                  setEditError("");
+                  setEditing(true);
+                }}
+              >
+                <Pencil size={15} />
+              </button>
+            )}
+          </h3>
           <p>{app.description || "暂无应用介绍"}</p>
-          {role !== "SUBUSER" && role !== "SUPPORT" && (
-            <button
-              className="secondary"
-              onClick={() => {
-                setEditError("");
-                setEditing(true);
-              }}
-            >
-              <Settings size={15} />
-              编辑应用资料
-            </button>
-          )}
         </div>
         <div className="app-card-actions">
           <a
@@ -189,7 +201,7 @@ export function AppDetails({
                   ? consumed || app.secret_view_available === false
                     ? "此密钥已展示；如遗失请到应用设置重置"
                     : "仅允许查看一次，请立即复制保存"
-                  : "验证当前账号密码后查看，60 秒后自动隐藏"}
+                  : "授权后查看，60 秒后自动隐藏"}
             </small>
           </div>
           <div className="details-credential-value">
@@ -201,16 +213,32 @@ export function AppDetails({
                 type="button"
                 className="icon-button"
                 disabled={
-                  !secret && (consumed || app.secret_view_available === false)
+                  pending ||
+                  (!secret && (consumed || app.secret_view_available === false))
                 }
-                aria-label={
-                  secret ? "隐藏 APPSECRET" : "验证密码后查看 APPSECRET"
-                }
-                onClick={() => {
+                aria-label={secret ? "隐藏 APPSECRET" : "授权后查看 APPSECRET"}
+                onClick={async () => {
                   if (secret) setSecret("");
                   else {
-                    setError("");
-                    setAsking(true);
+                    const version = ++request.current;
+                    try {
+                      setPending(true);
+                      setError("");
+                      const result = await api<{ secret: string }>(
+                        "app/secret/view",
+                        { app_id: app.appid },
+                        "POST",
+                      );
+                      if (request.current !== version) return;
+                      setSecret(result.secret);
+                      if (app.secret_repeat_allowed === false)
+                        setConsumed(true);
+                    } catch (x) {
+                      if (request.current === version)
+                        setError((x as Error).message);
+                    } finally {
+                      if (request.current === version) setPending(false);
+                    }
                   }
                 }}
               >
@@ -267,64 +295,7 @@ export function AppDetails({
           </div>
         </dl>
       </section>
-      {asking && (
-        <Dialog title="验证身份后查看 APPSECRET" close={close}>
-          <p className="muted">
-            请输入当前登录账号的密码。请妥善保管应用密钥。
-          </p>
-          <form
-            onSubmit={async (e) => {
-              e.preventDefault();
-              const password = String(
-                new FormData(e.currentTarget).get("password") || "",
-              );
-              const version = ++request.current;
-              try {
-                setPending(true);
-                setError("");
-                const result = await api<{ secret: string }>(
-                  "app/secret/view",
-                  { app_id: app.appid, password },
-                  "POST",
-                );
-                if (request.current !== version) return;
-                setSecret(result.secret);
-                if (app.secret_repeat_allowed === false) setConsumed(true);
-                setAsking(false);
-              } catch (x) {
-                if (request.current === version) setError((x as Error).message);
-              } finally {
-                if (request.current === version) setPending(false);
-              }
-            }}
-          >
-            <label>
-              当前密码
-              <input
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                autoFocus
-              />
-            </label>
-            {error && (
-              <p className="error" role="alert">
-                {error}
-              </p>
-            )}
-            <div className="app-card-actions">
-              <button type="button" className="secondary" onClick={close}>
-                取消
-              </button>
-              <button className="primary" disabled={pending}>
-                <Check size={16} />
-                {pending ? "验证中…" : "验证并查看"}
-              </button>
-            </div>
-          </form>
-        </Dialog>
-      )}
+      {error && <p className="error">{error}</p>}{" "}
       {editing && (
         <Dialog title="编辑应用资料" close={() => setEditing(false)}>
           <form

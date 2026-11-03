@@ -1,3 +1,4 @@
+import { BackLink } from "./BackLink";
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Dialog } from "./Extras";
@@ -21,13 +22,13 @@ const labels: Record<string, string> = {
   recovery: "恢复码",
 };
 export function storeSession(s: Session) {
-  sessionStorage.setItem("tcv-session", JSON.stringify(s));
+  localStorage.setItem("zct_slms-session", JSON.stringify(s));
   let accounts: Session[] = [];
   try {
-    accounts = JSON.parse(sessionStorage.getItem("tcv-accounts") || "[]");
+    accounts = JSON.parse(localStorage.getItem("zct_slms-accounts") || "[]");
   } catch {}
-  sessionStorage.setItem(
-    "tcv-accounts",
+  localStorage.setItem(
+    "zct_slms-accounts",
     JSON.stringify([
       ...accounts.filter(
         (a) => a.user_type !== s.user_type || a.user_id !== s.user_id,
@@ -117,7 +118,7 @@ export function PrimaryLogin({
               setError("");
             }}
           >
-            {labels[k]}登录
+            {labels[k]}
           </button>
         ))}
       </div>
@@ -169,9 +170,6 @@ export function PrimaryLogin({
           {busy ? "验证中…" : `使用${labels[method]}登录`}
         </button>
       </div>
-      <a className="forgot-link" href="/forgot-password">
-        忘记密码？
-      </a>
     </form>
   );
 }
@@ -201,8 +199,8 @@ export function MfaDialog() {
       setCooldown(0);
       setBusy(false);
     };
-    window.addEventListener("tcv:mfa", f);
-    return () => window.removeEventListener("tcv:mfa", f);
+    window.addEventListener("zct_slms:mfa", f);
+    return () => window.removeEventListener("zct_slms:mfa", f);
   }, []);
   useEffect(() => {
     if (!cooldown) return;
@@ -386,6 +384,25 @@ export function OnboardingGate({
     )
       history.replaceState(null, "", "/");
   }, [q.data]);
+  useEffect(() => {
+    if (
+      !q.isError ||
+      !/(请先登录|未登录|登录已过期)/.test((q.error as Error).message)
+    )
+      return;
+    localStorage.removeItem("zct_slms-session");
+    try {
+      const accounts = JSON.parse(localStorage.getItem("zct_slms-accounts") || "[]");
+      localStorage.setItem(
+        "zct_slms-accounts",
+        JSON.stringify(
+          accounts.filter((a: Session) => a.token !== session.token),
+        ),
+      );
+    } catch {}
+    qc.clear();
+    onLogout();
+  }, [q.isError, q.error, session.token]);
   if (q.isPending || q.isError)
     return (
       <div className="login-page">
@@ -395,19 +412,18 @@ export function OnboardingGate({
             {q.isPending ? "正在检查账号状态…" : (q.error as Error).message}
           </p>
           {q.isError && (
-            <div className="form-actions">
+            <div className="form-actions security-check-actions">
               <button className="secondary" onClick={() => q.refetch()}>
                 重试
               </button>
-              <button
-                className="primary"
+              <BackLink
                 onClick={() => {
-                  sessionStorage.removeItem("tcv-session");
+                  localStorage.removeItem("zct_slms-session");
                   onLogout();
                 }}
               >
                 返回登录
-              </button>
+              </BackLink>
             </div>
           )}
         </section>
@@ -442,15 +458,13 @@ export function OnboardingGate({
                 },
                 "POST",
               );
-              sessionStorage.removeItem("tcv-session");
+              localStorage.removeItem("zct_slms-session");
               let all: Session[] = [];
               try {
-                all = JSON.parse(
-                  sessionStorage.getItem("tcv-accounts") || "[]",
-                );
+                all = JSON.parse(localStorage.getItem("zct_slms-accounts") || "[]");
               } catch {}
-              sessionStorage.setItem(
-                "tcv-accounts",
+              localStorage.setItem(
+                "zct_slms-accounts",
                 JSON.stringify(
                   all.filter(
                     (s) =>
@@ -462,7 +476,7 @@ export function OnboardingGate({
               qc.clear();
               history.replaceState(null, "", "/");
               window.dispatchEvent(
-                new CustomEvent("tcv:success", {
+                new CustomEvent("zct_slms:success", {
                   detail: "新密码已设置，请重新登录",
                 }),
               );
