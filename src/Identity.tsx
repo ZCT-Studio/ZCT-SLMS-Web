@@ -35,8 +35,8 @@ const labels: Record<string, string> = {
   github: "GitHub",
 };
 const names: Record<string, string> = {
-  public_url: "前端地址",
-  backend_url: "后端地址",
+  public_url: "前端可访问地址",
+  backend_url: "后端可访问地址",
   smtp_host: "SMTP 主机",
   smtp_port: "SMTP 端口",
   smtp_username: "SMTP 用户名",
@@ -123,11 +123,9 @@ export function IdentityAdmin({ api }: { api: Api }) {
                 "aliyun_reset_template",
               ]
           : dialog === "github"
-            ? ["public_url", "backend_url", "github_client", "github_secret"]
+            ? ["github_client", "github_secret"]
             : dialog === "microsoft"
               ? [
-                  "public_url",
-                  "backend_url",
                   "microsoft_client",
                   "microsoft_secret",
                   "microsoft_tenant",
@@ -173,7 +171,7 @@ export function IdentityAdmin({ api }: { api: Api }) {
         <button
           type="button"
           className="icon-button"
-          aria-label="配置前端可访问地址地址"
+          aria-label="配置前端可访问地址"
           onClick={() => open("site")}
         >
           <Settings size={17} />
@@ -380,8 +378,7 @@ export function IdentityAdmin({ api }: { api: Api }) {
                   的邮箱无法直接使用此密码认证配置。
                 </p>
                 <p>
-                  注册验证码与工单通知使用独立 SMTP 配置，需要分别保存。Login
-                  denied 表示认证被拒绝，请先核对授权码和服务商限制。
+                  注册验证码与工单通知使用独立 SMTP 配置，需要分别保存。SMTP 报错时请根据失败阶段核对服务商要求、授权码和 TLS 配置。
                 </p>
               </HelpTip>
             )}
@@ -456,7 +453,7 @@ export function IdentityAdmin({ api }: { api: Api }) {
           close={() => setHelp("")}
         >
           <ol className="setup-steps">
-            <li>先填写本站公开地址，生产环境使用 HTTPS。</li>
+            <li>先配置前端可访问地址；分域部署时同时配置后端可访问地址。生产环境使用 HTTPS，本机调试可使用 localhost。</li>
             <li>
               {help === "microsoft" ? (
                 <>

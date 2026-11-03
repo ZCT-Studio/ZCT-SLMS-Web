@@ -270,8 +270,7 @@ export function FactorAdmin({ api, tab }: { api: Api; tab: string }) {
             </div>
           ))}
           <p className="muted">
-            通行密钥需要先在注册登录配置中填写本站公开地址，生产环境使用
-            HTTPS。动态令牌兼容常见 TOTP 验证器。
+            通行密钥使用“注册登录”中的前端可访问地址校验站点来源，生产环境需使用 HTTPS，本机调试可使用 localhost。动态令牌支持 TOTP 验证器。
           </p>
         </>
       ) : (

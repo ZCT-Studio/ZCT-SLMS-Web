@@ -24,11 +24,12 @@ docker compose up -d --build
 | 变量 | 说明 |
 | --- | --- |
 | `ZCT_SLMS_WEB_PORT` | 前端端口，默认 `17316` |
+| `ZCT_SLMS_WEB_API_URL` | 浏览器直连的后端源地址；留空使用同域 `/api` |
 | `ZCT_SLMS_WEB_PROXY_URL` | 容器可访问的后端地址，默认 `http://host.docker.internal:17112` |
 | `ZCT_SLMS_WEB_FORWARD_MODE` | `proxy` 代理、`redirect` 重定向、`off` 关闭 API 访问 |
 | `ZCT_SLMS_WEB_REDIRECT_URL` | 重定向模式下浏览器可访问的后端地址 |
 
-`/api/v1/ping` 转发到后端的 `/api/v1/ping`，保留路径和查询参数。推荐使用代理模式；关闭 API 访问后，登录与管理功能也无法连接后端。
+`/api/v1/ping` 转发到后端的 `/api/v1/ping`，保留路径和查询参数。同域部署可使用代理；分域部署设置 `ZCT_SLMS_WEB_API_URL` 后，浏览器直接连接后端，此时可关闭前端转发。
 
 后端同在 Docker 网络时，使用服务名和容器端口作为 `ZCT_SLMS_WEB_PROXY_URL`。本地 `.env` 不提交到 Git。
 
@@ -92,4 +93,4 @@ Demo 与正式版共用登录框、身份/登录方式标签、品牌、统计�
 
 ## 环境变量命名
 
-运行变量统一为 `ZCT_SLMS_WEB_*`（前端）和 `ZCT_SLMS_CORE_*`（后端），构建参数统一为 `ZCT_SLMS_BUILD_*`。Vite 专用变量使用 `VITE_ZCT_SLMS_WEB_*`。Docker、GitHub 和 vcpkg 的标准变量保留工具要求的原名。完整分组、默认值和说明见 `.env.example`；旧名称不再读取，本地已有 `.env` 已转换变量名，配置值保持不变。
+运行变量统一为 `ZCT_SLMS_WEB_*`（前端）和 `ZCT_SLMS_CORE_*`（后端），构建参数统一为 `ZCT_SLMS_BUILD_*`。Vite 专用变量使用 `VITE_ZCT_SLMS_WEB_*`。Docker、GitHub 和 vcpkg 的标准变量保留工具要求的原名。完整分组、默认值和说明见 `.env.example`；旧变量名称不再读取。

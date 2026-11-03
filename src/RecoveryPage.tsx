@@ -13,7 +13,7 @@ const names: Record<string, string> = {
   totp: "动态令牌",
   passkey: "通行密钥",
   ticket: "人工工单",
-  security_ticket: "账号安全工单（解绑或重置登录方式）",
+  security_ticket: "解绑工单（解绑或重置登录方式）",
 };
 export function InviteRegistration({
   api,
@@ -274,7 +274,7 @@ export function RecoveryPage({ api }: { api: Api }) {
             </label>
             <div className="form-actions">
               <button className="primary" disabled={busy}>
-                提交忘记密码工单
+                {method === "security_ticket" ? "提交解绑工单" : "提交忘记密码工单"}
               </button>
             </div>
           </form>

@@ -1,152 +1,99 @@
-<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>API 文档</title><style>body{font:15px system-ui;margin:auto;max-width:960px;padding:24px;background:#f7f8fa;color:#202634}section{background:white;border-radius:18px;padding:24px;margin:24px 0}pre{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.7}</style><a href="/">返回登录</a><h1>API 文档</h1><section><pre># API 概览
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ZCT-SLMS API 文档</title><style>body{font:15px system-ui;margin:auto;max-width:960px;padding:24px;background:#f7f8fa;color:#202634}section{background:white;border-radius:18px;padding:24px;margin:24px 0}pre{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.7}a{color:#7869df}</style><a href="/">返回登录</a><h1>API 文档</h1><section><pre># API 概览
 
-所有端点按**前缀**分四组，每组不同认证策略：
+接口前缀为 /api/v1。常用分组如下，具体权限以接口为准：
 
-| 前缀 | 角色 | 认证 | 加密/签名 |
-|---|---|---|---|
-| `/api/v1/auth/*` | 登录 / 登出 | 登录公开 | ❌ |
-| `/api/v1/admin/*` | ADMIN | Bearer Token | ❌ |
-| `/api/v1/{app,license}/*` | OWNER / SUBUSER | Bearer Token | ❌ |
-| `/api/v1/client/*` | 客户端 | 四要素（timestamp + nonce + 可选 signature） | ✅ |
+- /auth/*：登录、注册、身份绑定及安全验证；部分接口要求已登录。
+- /admin/*：管理员操作；支持账号仅使用其被授权的工单、审查等入口。
+- /app/*、/license/*：按账号角色和应用归属授权。
+- /tickets/*、/vouchers/*、/accounts/*：按账号与记录可见范围授权。
+- /client/*：客户端授权验证，按应用配置校验签名、编码和防重放字段。
 
-## 统一响应格式
+成功响应 code 为 0；失败时结合 code 与 message 判断原因，不能仅凭 HTTP 200 判断成功。
+{&quot;code&quot;:0,&quot;message&quot;:&quot;OK&quot;,&quot;data&quot;:{}}
 
-```json
+已登录接口使用登录返回的 token：
+Authorization: Bearer &lt;登录接口返回的 token&gt;
+
+敏感操作另需完成统一身份验证；普通登录 token 不能代替操作授权。部分登录响应要求继续完成双重验证或首次账号设置。
+
+常用接口使用 GET/POST。GET 参数放在查询字符串中，POST 推荐 application/json；其他格式以具体接口为准。
+
+# 响应错误码（来自当前后端定义）
+   0  OK
+1001  BAD_REQUEST
+1002  NOT_FOUND
+1003  INTERNAL
+1004  VALIDATION
+2001  UNAUTHORIZED
+2002  TOKEN_EXPIRED
+2003  TOKEN_REVOKED
+2004  IP_NOT_ALLOWED
+3001  APP_NOT_FOUND
+3002  APP_DISABLED
+3003  APP_SECRET_BAD
+3004  FUNC_NOT_FOUND
+3005  FUNC_NOT_IN_APP
+4001  SIGNATURE_BAD
+4002  TIMESTAMP_BAD
+4003  NONCE_REPLAY
+4004  NONCE_MISSING
+5001  LICENSE_NOT_FOUND
+5002  LICENSE_BANNED
+5003  LICENSE_EXPIRED
+5004  LICENSE_UNUSED
+5005  LICENSE_BOUND_IP
+5006  LICENSE_BOUND_DEV
+5007  LICENSE_NO_UNBIND
+5008  LICENSE_QUOTA_LIMIT
+5009  LICENSE_BALANCE_INS
+6001  USER_NOT_FOUND
+6002  USER_EXPIRED
+6003  USER_DISABLED
+6004  USER_BAD_CREDENTIALS
+9001  RATE_LIMITED</pre></section><section><pre># POST /api/v1/client/license/verify
+
+验证或激活卡密，返回当前状态、剩余时长及绑定模式。
+
+公共字段：
+- appid：应用 ID，字符串。
+- timestamp：Unix 秒级时间戳，须在服务端允许的时间窗口内。
+- nonce：每次请求使用新的随机字符串，长度 1–128。
+- signature：应用开启请求签名时提供，按当前签名规则计算。
+
+业务字段：
+- license：卡密明文。
+- device：设备标识，绑定设备的卡密需要提供。
+
+应用启用编码或加密时，将业务字段按配置处理后放入 encode；appid、timestamp、nonce 等公共字段保持在外层。未启用时直接提交业务字段。不要使用演示密钥或在网页中公开应用密钥。
+
+示例响应（仅用于说明字段）：
 {
   &quot;code&quot;: 0,
-  &quot;message&quot;: &quot;ok&quot;,
-  &quot;data&quot;: {}
-}
-```
-
-- `code = 0` 表示成功，非 0 为错误码（见下方）。
-- `message` 可读描述。
-- `data` 成功时有值，失败时可能不存在。
-
-## 错误码
-
-| code | 名称 | 说明 |
-|---|---|---|
-| 0 | OK | 成功 |
-| 1001 | BAD_REQUEST | 参数错误 |
-| 1003 | INTERNAL | 内部错误 |
-| 1004 | VALIDATION | 参数校验失败 |
-| 2001 | UNAUTHORIZED | 未授权 |
-| 2004 | IP_NOT_ALLOWED | IP 不允许 |
-| 3001 | APP_NOT_FOUND | APP 不存在 |
-| 3002 | APP_DISABLED | APP 已禁用 |
-| 4001 | SIGNATURE_BAD | 签名错误 |
-| 4002 | TIMESTAMP_BAD | 时间戳错误 |
-| 4003 | NONCE_REPLAY | nonce 重复 |
-| 5001 | LICENSE_NOT_FOUND | 卡密不存在 |
-| 5002 | LICENSE_BANNED | 卡密已封禁 |
-| 5003 | LICENSE_EXPIRED | 卡密已过期 |
-| 5005 | LICENSE_BOUND_IP | IP 绑定不匹配 |
-| 5006 | LICENSE_BOUND_DEV | 设备绑定不匹配 |
-| 9001 | RATE_LIMITED | 请求过于频繁 |
-
-## Bearer Token 认证
-
-所有 `/api/v1/admin/*` 和 `/api/v1/{app,license}/*` 请求必须带：
-
-```http
-Authorization: Bearer eyJhbGciOiJIUzI1NiJ9...
-```
-
-Token 由登录接口返回，存 `sessions` 表。
-
-## Content-Type
-
-- `POST / PUT`：`application/json` 或 `application/x-www-form-urlencoded`
-- `GET`：query string
-- Drogon `paramStr()` 统一处理，参数名应按文档使用小写。
-</pre></section><section><pre># POST /api/v1/client/license/verify
-
-卡密激活/验证。客户端软件启动时调用，返回卡密状态 + 绑定信息 + 剩余时长。
-
-## 请求
-
-### 四要素（必填）
-
-| 参数 | 类型 | 说明 |
-|---|---|---|
-| `appid` | string | APP 唯一标识 |
-| `timestamp` | int64 | Unix 秒级时间戳 |
-| `nonce` | string | 随机字符串 |
-
-### 业务参数
-
-| 参数 | 类型 | 必填 | 说明 |
-|---|---|---|---|
-| `license` | string | ✅ | 卡密明文（KEY-XXX-XXX） |
-| `device` | string | ⭕ | 设备标识（MAC 地址 hash / CPU ID hash / 自定义 hash） |
-
-&gt; 当 APP `dec_mode != NONE` 时，外层携带 `appid`、`timestamp`、`nonce`，业务参数 `license` 和 `device` 放进 `encode`。见 [加密传输](../../client/encryption.md)。
-
-## 成功响应
-
-```json
-{
-  &quot;code&quot;: 0,
-  &quot;message&quot;: &quot;ok&quot;,
+  &quot;message&quot;: &quot;OK&quot;,
   &quot;data&quot;: {
     &quot;status&quot;: &quot;active&quot;,
     &quot;remaining&quot;: 86399,
     &quot;expired&quot;: false,
-    &quot;expires_at&quot;: 1767225600,
+    &quot;expires_at&quot;: 1893456000,
     &quot;binding_mode&quot;: &quot;DEVICE&quot;,
-    &quot;remark&quot;: &quot;VIP 年卡&quot;,
-    &quot;license_type&quot;: &quot;premium&quot;
+    &quot;remark&quot;: &quot;示例卡密&quot;,
+    &quot;license_type&quot;: &quot;自定义类型&quot;,
+    &quot;heartbeat_required&quot;: true,
+    &quot;heartbeat_interval_seconds&quot;: 60,
+    &quot;heartbeat_timeout_seconds&quot;: 180
   }
 }
-```
 
-| 字段 | 类型 | 说明 |
-|---|---|---|
-| `status` | string | `active` / `expired` / `banned` |
-| `remaining` | int64 | 剩余秒数（未过期时） |
-| `expired` | bool | 是否已过期 |
-| `expires_at` | int64 | Unix 秒级过期时间 |
-| `binding_mode` | string | 当前卡密使用的绑定模式（NONE / IP / DEVICE / IP_AND_DEVICE） |
-| `remark` | string | OWNER 创建卡密时的备注 |
-| `license_type` | string | 自由字符串，OWNER 自定义分类 |
+remaining 为剩余秒数，expires_at 为 Unix 秒级到期时间（-1 表示无限）。绑定校验使用卡密当前模式：NONE、IP、DEVICE 或 IP_AND_DEVICE，请结合返回的 binding_mode 处理。
 
-## 失败响应示例
+# 心跳验证
 
-```json
-// APP 不存在
-{&quot;code&quot;: 3001, &quot;message&quot;: &quot;APPID 不存在&quot;}
+应用启用心跳时，根据验证成功响应中的 heartbeat_required 和间隔/超时配置，调用 POST /api/v1/client/license/heartbeat。心跳同样提交公共字段和卡密/设备业务字段，并按应用要求进行签名和编码。每次请求更新 timestamp、nonce；心跳失败后应停止使用授权功能。
 
-// 卡密不存在
-{&quot;code&quot;: 5001, &quot;message&quot;: &quot;卡密不存在&quot;}
+# 前后端地址与 OAuth
 
-// 卡密已过期
-{&quot;code&quot;: 5003, &quot;message&quot;: &quot;卡密已过期&quot;}
+前端可访问地址用于邮件、通行密钥来源及 OAuth 完成后的返回页面。后端可访问地址用于第三方回调，例如：
+https://api.example.com/api/v1/auth/connect/callback/github
 
-// 设备绑定失败
-{&quot;code&quot;: 5006, &quot;message&quot;: &quot;设备绑定不匹配&quot;}
-```
-
-## 绑定校验细节
-
-`verify` 内部按 APP 的 binding_mode 决定校验策略：
-
-| APP binding_mode | 校验逻辑 |
-|---|---|
-| `NONE` | 不校验，仅验证状态和时间 |
-| `IP` | `ip` 必须与卡密首次使用时记录的一致 |
-| `DEVICE` | `device` 必须与卡密首次使用时记录的一致 |
-| `IP_AND_DEVICE` | 两者都必须一致 |
-
-卡密首次被 verify 成功时自动记录绑定信息（`bound_ip_hash` / `bound_device_hash`），之后每次都校验。OWNER 可通过 `POST /api/v1/license/unbind` 手动解除。
-
-## 加密响应
-
-若 APP `dec_mode != NONE`，响应被同算法加密：
-
-```json
-{&quot;code&quot;:0,&quot;message&quot;:&quot;ok&quot;,&quot;encode&quot;:&quot;&lt;base64 blob&gt;&quot;}
-```
-
-客户端需要用同一密钥解密 `encode` 拿到原始 JSON（含 `status` / `remaining` / `expires_at` 等字段）。
+登录结果使用短时一次性票据与浏览器持有的验证器交换，不依赖跨站 Cookie。分域访问需配置允许的前端来源及前端运行时 API 地址；不要在客户端存放第三方 Client Secret。
 </pre></section></html>
