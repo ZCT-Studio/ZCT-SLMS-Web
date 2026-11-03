@@ -1,3 +1,4 @@
+import {apiFetch} from "./Network";
 import { LoginFrame, AccountRoleTabs, WorkspaceBrand, Stat } from "./ProductUI";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { BackLink } from "./BackLink";
@@ -170,7 +171,7 @@ async function api<T>(
           Object.entries(params).map(([k, v]) => [k, String(v)]),
         )
       : "";
-  const res = await fetch("/api/v1/" + path + query, {
+  const res = await apiFetch("/api/v1/" + path + query, {
     method,
     headers: {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),

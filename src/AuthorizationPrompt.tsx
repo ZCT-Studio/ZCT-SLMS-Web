@@ -1,3 +1,4 @@
+import {apiFetch} from "./Network";
 import { HelpTip } from "./Help";
 import { useEffect, useRef, useState } from "react";
 import { Dialog } from "./Extras";
@@ -23,7 +24,7 @@ const labels: Record<string, string> = {
 };
 async function call(path: string, body: Record<string, any> = {}) {
   const session = JSON.parse(localStorage.getItem("zct_slms-session") || "null");
-  const r = await fetch("/api/v1/" + path, {
+  const r = await apiFetch("/api/v1/" + path, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

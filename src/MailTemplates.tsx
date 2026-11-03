@@ -59,7 +59,7 @@ export function MailTemplates({ api }: { api: Api }) {
             支持 {"{code} {username} {nickname} {userid} {email}"}
             ；工单通知另支持{" "}
             {"{ticketid} {status} {new_chat} {full_chat} {siteurl} {ticketurl}"}
-            。按钮使用站点公开地址。注册前尚不存在用户
+            。按钮使用前端可访问地址。注册前尚不存在用户
             ID；尚未提供的用户名或昵称使用空值或“用户”。
           </p>
           <p>

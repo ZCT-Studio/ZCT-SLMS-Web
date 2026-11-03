@@ -1,3 +1,4 @@
+import {oauthBrowserVerifier,forgetOauthBinding} from "./Network";
 import { useEffect, useState, useRef } from "react";
 import { HelpTip } from "./Help";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -34,7 +35,8 @@ const labels: Record<string, string> = {
   github: "GitHub",
 };
 const names: Record<string, string> = {
-  public_url: "站点公开地址（如 https://verify.example.com）",
+  public_url: "前端地址",
+  backend_url: "后端地址",
   smtp_host: "SMTP 主机",
   smtp_port: "SMTP 端口",
   smtp_username: "SMTP 用户名",
@@ -101,7 +103,7 @@ export function IdentityAdmin({ api }: { api: Api }) {
   };
   const fields =
     dialog === "site"
-      ? ["public_url"]
+      ? ["public_url", "backend_url"]
       : dialog === "email"
         ? [
             "smtp_host",
@@ -121,10 +123,11 @@ export function IdentityAdmin({ api }: { api: Api }) {
                 "aliyun_reset_template",
               ]
           : dialog === "github"
-            ? ["public_url", "github_client", "github_secret"]
+            ? ["public_url", "backend_url", "github_client", "github_secret"]
             : dialog === "microsoft"
               ? [
                   "public_url",
+                  "backend_url",
                   "microsoft_client",
                   "microsoft_secret",
                   "microsoft_tenant",
@@ -162,20 +165,21 @@ export function IdentityAdmin({ api }: { api: Api }) {
       </h2>
       <div className="setting-row">
         <div>
-          <strong>站点公开地址</strong>
+          <strong>前端可访问地址</strong>
           <small>
-            {draft.public_url || "尚未配置；用于第三方登录和通行密钥"}
+            {draft.public_url || "尚未配置；用于返回前端、邮件链接和通行密钥"}
           </small>
         </div>
         <button
           type="button"
           className="icon-button"
-          aria-label="配置站点公开地址"
+          aria-label="配置前端可访问地址地址"
           onClick={() => open("site")}
         >
           <Settings size={17} />
         </button>
       </div>
+      <div className="setting-row"><div><strong>后端可访问地址</strong><small>{draft.backend_url || "未配置时使用前端同域 API；用于 OAuth 回调"}</small></div><button type="button" className="icon-button" aria-label="配置后端可访问地址" onClick={()=>open("site")}><Settings size={17}/></button></div>
       {query.isError && (
         <p className="error">{(query.error as Error).message}</p>
       )}
@@ -260,7 +264,7 @@ export function IdentityAdmin({ api }: { api: Api }) {
             dialog === "switches"
               ? "确认注册登录开关"
               : dialog === "site"
-                ? "配置站点公开地址"
+                ? "配置站点地址"
                 : `配置${labels[dialog]}`
           }
           close={close}
@@ -485,7 +489,7 @@ export function IdentityAdmin({ api }: { api: Api }) {
                 ? "添加 Web 平台的重定向 URI："
                 : "填写 Authorization callback URL："}
               <code style={{ display: "block", overflowWrap: "anywhere" }}>
-                {draft.public_url || "https://你的域名"}
+                {draft.backend_url || draft.public_url || "https://你的后端域名"}
                 /api/v1/auth/connect/callback/{help}
               </code>
             </li>
@@ -916,15 +920,20 @@ export function CompleteIdentityLogin({
   useEffect(() => {
     const url = new URL(location.href),
       ticket = url.searchParams.get("auth_ticket");
+    const binding = url.searchParams.get("auth_binding") || "";
     if (!ticket) return;
     url.searchParams.delete("auth_ticket");
+    url.searchParams.delete("auth_binding");
     history.replaceState(null, "", url.pathname + url.search + url.hash);
+    let browserVerifier: string;
+    try{browserVerifier=oauthBrowserVerifier(binding)}catch(e){setError((e as Error).message);return;}
     api<Session & { bound?: boolean }>(
       "auth/connect/exchange",
-      { ticket },
+      { ticket, browser_verifier: browserVerifier },
       "POST",
     )
       .then(async (data) => {
+        forgetOauthBinding(binding);
         if (
           (data as any).authorization_token ||
           (data as any).authorization_required

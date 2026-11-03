@@ -1,13 +1,19 @@
 name: zct-slms-web
 services:
   web:
-    build: .
+    build:
+      context: .
+      args:
+        ZCT_SLMS_BUILD_NODE_IMAGE: "${ZCT_SLMS_BUILD_NODE_IMAGE:-node:22-alpine}"
+        ZCT_SLMS_BUILD_NGINX_IMAGE: "${ZCT_SLMS_BUILD_NGINX_IMAGE:-nginx:alpine}"
+        ZCT_SLMS_BUILD_NPM_REGISTRY: "${ZCT_SLMS_BUILD_NPM_REGISTRY:-https://registry.npmjs.org/}"
     ports:
-      - "${WEB_PORT:-17316}:80"
+      - "${ZCT_SLMS_WEB_PORT:-17316}:80"
     environment:
-      BACKEND_FORWARD_MODE: "${BACKEND_FORWARD_MODE:-off}"
-      BACKEND_PUBLIC_URL: "${BACKEND_PUBLIC_URL:-}"
-      BACKEND_URL: "${BACKEND_URL:-http://host.docker.internal:17112}"
+      ZCT_SLMS_WEB_API_URL: "${ZCT_SLMS_WEB_API_URL:-}"
+      ZCT_SLMS_WEB_FORWARD_MODE: "${ZCT_SLMS_WEB_FORWARD_MODE:-proxy}"
+      ZCT_SLMS_WEB_REDIRECT_URL: "${ZCT_SLMS_WEB_REDIRECT_URL:-}"
+      ZCT_SLMS_WEB_PROXY_URL: "${ZCT_SLMS_WEB_PROXY_URL:-http://host.docker.internal:17112}"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped
