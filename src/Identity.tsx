@@ -163,21 +163,20 @@ export function IdentityAdmin({ api }: { api: Api }) {
       </h2>
       <div className="setting-row">
         <div>
-          <strong>前端可访问地址</strong>
+          <strong>可访问地址</strong>
           <small>
-            {draft.public_url || "尚未配置；用于返回前端、邮件链接和通行密钥"}
+            {draft.public_url ? "已配置前端地址" : "前端地址尚未配置"} · {draft.backend_url ? "已配置后端地址" : "后端使用前端同域 API"}
           </small>
         </div>
         <button
           type="button"
           className="icon-button"
-          aria-label="配置前端可访问地址"
+          aria-label="配置可访问地址"
           onClick={() => open("site")}
         >
           <Settings size={17} />
         </button>
       </div>
-      <div className="setting-row"><div><strong>后端可访问地址</strong><small>{draft.backend_url || "未配置时使用前端同域 API；用于 OAuth 回调"}</small></div><button type="button" className="icon-button" aria-label="配置后端可访问地址" onClick={()=>open("site")}><Settings size={17}/></button></div>
       {query.isError && (
         <p className="error">{(query.error as Error).message}</p>
       )}
@@ -262,7 +261,7 @@ export function IdentityAdmin({ api }: { api: Api }) {
             dialog === "switches"
               ? "确认注册登录开关"
               : dialog === "site"
-                ? "配置站点地址"
+                ? "可访问地址"
                 : `配置${labels[dialog]}`
           }
           close={close}
