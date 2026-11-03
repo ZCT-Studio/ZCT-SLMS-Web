@@ -1,6 +1,5 @@
-name: Docker Build (verify)
+name: Docker Build
 
-# 构建验证：PR 与任意分支的 push 都会执行，仅构建不推送镜像
 on:
   pull_request:
   push:
