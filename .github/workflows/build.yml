@@ -31,7 +31,7 @@ jobs:
                   if-no-files-found: error
 
     docker:
-        name: Docker Linux x64 + ARM64 / Tag Publish
+        name: Docker / Tag Publish
         needs: [build]
         runs-on: ubuntu-24.04
         permissions:
