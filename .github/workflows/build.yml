@@ -28,7 +28,7 @@ jobs:
             - run: npm run build
             - uses: actions/upload-artifact@v4
               with:
-                  name: ZCT-SLMS-WebUI
+                  name: ZCT-SLMS-Web
                   path: dist/
                   if-no-files-found: error
 
@@ -47,7 +47,7 @@ jobs:
               id: meta
               uses: docker/metadata-action@v5
               with:
-                  images: ghcr.io/zct-studio/zct-slms-webui
+                  images: ghcr.io/zct-studio/zct-slms-web
                   tags: |
                       type=ref,event=tag
                       type=ref,event=pr
@@ -81,14 +81,14 @@ jobs:
         steps:
             - uses: actions/download-artifact@v4
               with:
-                  name: ZCT-SLMS-WebUI
+                  name: ZCT-SLMS-Web
                   path: dist
             - name: Archive Web UI
-              run: tar -czf ZCT-SLMS-WebUI.tar.gz -C dist .
+              run: tar -czf ZCT-SLMS-Web.tar.gz -C dist .
             - uses: softprops/action-gh-release@v2
               with:
                   tag_name: ${{ github.ref_name }}
                   name: ZCT-SLMS Web UI ${{ github.ref_name }}
-                  files: ZCT-SLMS-WebUI.tar.gz
+                  files: ZCT-SLMS-Web.tar.gz
                   fail_on_unmatched_files: true
                   prerelease: ${{ contains(github.ref_name, '-') }}

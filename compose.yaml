@@ -1,4 +1,4 @@
-name: zct-slms-webui
+name: zct-slms-web
 services:
   web:
     build: .
