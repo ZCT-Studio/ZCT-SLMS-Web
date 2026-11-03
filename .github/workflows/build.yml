@@ -27,11 +27,16 @@ jobs:
             - name: Stage Static Files
               run: |
                   mkdir -p package/ZCT-SLMS-Web
+                  test -s dist/index.html
+                  test -s dist/runtime-config.js
+                  test -s dist/api-docs.html
                   cp -a dist/. package/ZCT-SLMS-Web/
+                  cp .env.example README.md LICENSE package/ZCT-SLMS-Web/
             - uses: actions/upload-artifact@v4
               with:
                   name: ZCT-SLMS-Web
                   path: package/
+                  include-hidden-files: true
                   if-no-files-found: error
 
     docker:
@@ -87,6 +92,9 @@ jobs:
                   path: .
             - name: Archive Universal Static Files
               run: |
+                  for required in index.html runtime-config.js api-docs.html .env.example README.md LICENSE; do
+                    test -s "ZCT-SLMS-Web/$required"
+                  done
                   tar -czf ZCT-SLMS-Web.tar.gz ZCT-SLMS-Web
                   zip -qr ZCT-SLMS-Web.zip ZCT-SLMS-Web
             - uses: softprops/action-gh-release@v2

@@ -94,3 +94,9 @@ Demo 与正式版共用登录框、身份/登录方式标签、品牌、统计�
 ## 环境变量命名
 
 运行变量统一为 `ZCT_SLMS_WEB_*`（前端）和 `ZCT_SLMS_CORE_*`（后端），构建参数统一为 `ZCT_SLMS_BUILD_*`。Vite 专用变量使用 `VITE_ZCT_SLMS_WEB_*`。Docker、GitHub 和 vcpkg 的标准变量保留工具要求的原名。完整分组、默认值和说明见 `.env.example`；旧变量名称不再读取。
+
+## 发布包内容
+
+静态包的 `ZCT-SLMS-Web/` 中包含 `index.html`、`assets/`、`runtime-config.js`、`api-docs.html`、`.env.example`、`README.md` 和 `LICENSE`。将静态文件放到 Web 服务器，启用 SPA 回退到 `index.html`；分域部署编辑 `runtime-config.js`。普通静态服务器不会读取 `.env`；环境变量示例用于 Docker 或源码构建，不能代替运行时配置。
+
+Docker 镜像内已包含静态页面、运行时配置脚本和 Nginx API 转发配置；宿主机环境变量模板随静态发布包和源码提供。GitHub Pages Demo 保持完全静态，不包含部署环境模板。发布包与镜像均不包含本地 `.env`。
