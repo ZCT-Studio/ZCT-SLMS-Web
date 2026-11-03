@@ -3,3 +3,7 @@ dist
 .git
 *.tsbuildinfo
 .env
+
+dist-demo
+.env.*
+!.env.example

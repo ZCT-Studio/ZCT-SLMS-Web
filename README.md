@@ -74,3 +74,10 @@ Demo 使用独立入口、Hash 路由和虚拟数据。首先展示登录界面�
 本地开发使用 `npm run dev:demo`；静态构建使用 `npm run build:demo`，产物为 `dist-demo/`，随后使用 `npm run preview:demo` 预览。项目子目录部署通过 `VITE_BASE_PATH` 指定基础路径。
 
 Demo 与正式版共用登录框、身份/登录方式标签、品牌、统计卡片、应用摘要、移动导航及弹窗组件，样式使用同一套 CSS；第三方演示入口仅保留 Microsoft 和 GitHub。
+
+## CI 产物
+
+- 通用静态文件：`ZCT-SLMS-Web-static-all-platforms`，适用于各系统的静态 Web 服务器；`v*` 发布附带 `.zip` 和 `.tar.gz` 压缩包。
+- Docker：`linux/amd64`（x64）与 `linux/arm64`，发布为 `ghcr.io/zct-studio/zct-slms-web` 的同一个多架构镜像，拉取时按主机架构选择。
+
+普通 CI 构建不推送镜像；`v*` 标签推送镜像并创建 Release，稳定版本更新 `latest`。Demo Pages 保持独立工作流，仅 `v*` 标签部署。

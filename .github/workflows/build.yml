@@ -14,7 +14,7 @@ permissions:
 
 jobs:
     build:
-        name: Build
+        name: Universal Static Files
         runs-on: ubuntu-24.04
         steps:
             - uses: actions/checkout@v4
@@ -26,12 +26,12 @@ jobs:
             - run: npm run build
             - uses: actions/upload-artifact@v4
               with:
-                  name: ZCT-SLMS-Web
+                  name: ZCT-SLMS-Web-static-all-platforms
                   path: dist/
                   if-no-files-found: error
 
     docker:
-        name: Docker Build / Tag Publish
+        name: Docker Linux x64 + ARM64 / Tag Publish
         needs: [build]
         runs-on: ubuntu-24.04
         permissions:
@@ -63,7 +63,7 @@ jobs:
               with:
                   context: .
                   file: Dockerfile
-                  platforms: linux/amd64
+                  platforms: linux/amd64,linux/arm64
                   push: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
                   tags: ${{ steps.meta.outputs.tags }}
                   labels: ${{ steps.meta.outputs.labels }}
@@ -79,14 +79,18 @@ jobs:
         steps:
             - uses: actions/download-artifact@v4
               with:
-                  name: ZCT-SLMS-Web
+                  name: ZCT-SLMS-Web-static-all-platforms
                   path: dist
-            - name: Archive Web
-              run: tar -czf ZCT-SLMS-Web.tar.gz -C dist .
+            - name: Archive Universal Static Files
+              run: |
+                  tar -czf ZCT-SLMS-Web-static.tar.gz -C dist .
+                  (cd dist && zip -qr ../ZCT-SLMS-Web-static.zip .)
             - uses: softprops/action-gh-release@v2
               with:
                   tag_name: ${{ github.ref_name }}
                   name: ZCT-SLMS Web ${{ github.ref_name }}
-                  files: ZCT-SLMS-Web.tar.gz
+                  files: |
+                      ZCT-SLMS-Web-static.tar.gz
+                      ZCT-SLMS-Web-static.zip
                   fail_on_unmatched_files: true
                   prerelease: ${{ contains(github.ref_name, '-') }}
