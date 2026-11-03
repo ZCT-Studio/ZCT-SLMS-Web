@@ -1,10 +1,11 @@
-name: Docker Push (tag)
+name: Docker Push
 
-# 仅当推送 v* 形式的版本 tag（如 v1.2.3）时构建并推送到 GHCR
+# 仅 v* 版本 tag（如 v1.2.3）构建并推送镜像到 GHCR；main 分支 push 不发版
 on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -16,6 +17,8 @@ env:
 jobs:
   push:
     name: Build and push image
+    # 与后端仓库约定一致：提交信息包含 --nobuild 时跳过
+    if: ${{ !contains(github.event.head_commit.message, '--nobuild') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -31,8 +34,8 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # 版本号去掉 v 前缀（1.2.3）、commit sha（sha-abc1234）；稳定版 tag 额外打 latest，
-      # 预发布（如 v1.2.3-rc.1）不会覆盖 latest
+      # v* tag：版本号去 v 前缀（1.2.3）+ commit sha（sha-abc1234），
+      # 仅稳定 tag（不含 '-'，如非 v1.2.3-rc.1）额外打 latest，latest 永远指向最新稳定发布
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -41,7 +44,7 @@ jobs:
           tags: |
             type=semver,pattern={{version}}
             type=sha,prefix=sha-,format=short
-            type=raw,value=latest,enable=${{ !contains(github.ref_name, '-') }}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-') }}
 
       - name: Build and push
         uses: docker/build-push-action@v6
