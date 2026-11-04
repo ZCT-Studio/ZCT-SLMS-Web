@@ -136,7 +136,7 @@ export function AccountClosure({ api }: { api: Api }) {
       <div className="setting-row">
         <h2>注销账号</h2>
         <HelpTip title="注销流程">
-          无论平台是否开启双重验证，都需要本次验证两种不同的登录方式。仅绑定一种时请先补充第二种。审核通过后账号及关联数据将永久删除；提交申请时仍保留账号。
+          输入本人完整用户名确认后提交注销工单。审核通过后账号及关联数据将永久删除；提交申请时仍保留账号。
         </HelpTip>
       </div>
       <div className="form-actions">
@@ -166,12 +166,10 @@ export function AccountClosure({ api }: { api: Api }) {
               try {
                 setBusy(true);
                 setError("");
-                await requestPassword(
-                  "注销账号：验证两种登录方式",
-                  (password) =>
-                    api("accounts/closure", { reason, password }, "POST"),
-                  "closure",
-                );
+                await api("accounts/closure", {
+                  reason,
+                  confirm_username: String(new FormData(e.currentTarget).get("confirm_username") || ""),
+                }, "POST");
                 await qc.invalidateQueries({ queryKey: ["tickets"] });
                 setOpen(false);
                 notify("注销申请已提交，请在工单系统查看审核进度");
@@ -182,6 +180,10 @@ export function AccountClosure({ api }: { api: Api }) {
               }
             }}
           >
+            <label>
+              输入本人用户名以确认
+              <input name="confirm_username" autoComplete="off" required placeholder="完整用户名" />
+            </label>
             <label>
               注销原因
               <textarea
@@ -195,7 +197,7 @@ export function AccountClosure({ api }: { api: Api }) {
             {error && <p className="error">{error}</p>}
             <div className="form-actions">
               <button className="primary" disabled={busy}>
-                {busy ? "验证中…" : "验证并提交注销工单"}
+                {busy ? "提交中…" : "确认并提交注销工单"}
               </button>
             </div>
           </form>

@@ -59,24 +59,36 @@ export function authenticateFactors<T>(api: Api, data: T): Promise<T> {
   );
 }
 let scripts: Record<string, Promise<void> | undefined> = {};
+let widgetLoadSequence = 0;
 function widgetScript(provider: string) {
   if (scripts[provider]) return scripts[provider];
-  const url =
-    provider === "recaptcha"
-      ? "https://www.google.com/recaptcha/api.js?render=explicit"
-      : provider === "hcaptcha"
-        ? "https://js.hcaptcha.com/1/api.js?render=explicit"
-        : "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
-  scripts[provider] = new Promise((resolve, reject) => {
-    const s = document.createElement("script");
-    s.src = url;
-    s.async = true;
-    s.onload = () => resolve();
-    s.onerror = () => {
-      delete scripts[provider];
-      reject(new Error("人机验证加载失败，请检查网络后刷新"));
+  const base = provider === "recaptcha"
+    ? "https://www.google.com/recaptcha/api.js"
+    : provider === "hcaptcha"
+      ? "https://js.hcaptcha.com/1/api.js"
+      : "https://challenges.cloudflare.com/turnstile/v0/api.js";
+  const callbackName = `zct_slms_captcha_loaded_${++widgetLoadSequence}`;
+  scripts[provider] = new Promise<void>((resolve, reject) => {
+    const script = document.createElement("script");
+    const globals = window as any;
+    const cleanup = () => {
+      clearTimeout(timeout);
+      delete globals[callbackName];
+      script.onerror = null;
     };
-    document.head.appendChild(s);
+    const fail = () => {
+      cleanup();
+      script.remove();
+      delete scripts[provider];
+      reject(new Error("人机验证加载失败或超时，请检查网络后重试"));
+    };
+    const timeout = window.setTimeout(fail, 20000);
+    // SDK onload signals initialization, unlike the script element's load event.
+    globals[callbackName] = () => { cleanup(); resolve(); };
+    script.src = `${base}?render=explicit&onload=${callbackName}${provider === "hcaptcha" ? "&recaptchacompat=off" : ""}`;
+    script.async = true;
+    script.onerror = fail;
+    document.head.appendChild(script);
   });
   return scripts[provider];
 }
@@ -112,17 +124,18 @@ function ProviderWidget({
           if (!active || !ref.current) return;
           id = api.render(ref.current, {
             sitekey: siteKey,
-            callback: (token: string) => callback.current(token),
-            "expired-callback": () => callback.current(""),
+            callback: (token: string) => { if (active) callback.current(token); },
+            "expired-callback": () => { if (active) callback.current(""); },
             "error-callback": () => {
+              if (!active) return;
               callback.current("");
               setError("验证失败，请刷新重试");
             },
             theme: "light",
           });
         };
-        if (api.ready) api.ready(render);
-        else render();
+        if (!api || typeof api.render !== "function") throw new Error("人机验证初始化失败，请重试");
+        render();
       })
       .catch((e) => active && setError(e.message));
     return () => {

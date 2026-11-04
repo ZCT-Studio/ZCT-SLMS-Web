@@ -648,9 +648,6 @@ export function TicketView({
         </div>
       )}
       {q.isError && <p className="error">{errorText(q.error)}</p>}
-      {q.data?.can_approve_closure && (
-        <ClosureReview api={api} ticket={q.data} refresh={() => q.refetch()} />
-      )}
       <div className="ticket-thread">
         {q.data?.messages?.map((m: any, i: number) => (
           <article key={i}>
@@ -848,6 +845,9 @@ export function TicketView({
             </button>
           </div>
         </div>
+      )}
+      {q.data?.can_approve_closure && (
+        <ClosureReview api={api} ticket={q.data} refresh={() => q.refetch()} />
       )}
       {error && <p className="error">{error}</p>}
     </section>

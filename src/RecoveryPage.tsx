@@ -314,9 +314,8 @@ export function RecoveryPage({ api }: { api: Api }) {
                     required
                   />
                 </label>
-                {human.widget}
                 <div className="form-actions">
-                  <button className="primary" disabled={busy || !human.ready}>
+                  <button className="primary" disabled={busy}>
                     查看恢复方式
                   </button>
                 </div>
@@ -524,11 +523,11 @@ export function RecoveryPage({ api }: { api: Api }) {
                     )}
                     {method === "passkey" && (
                       <>
-                        {human.widget}
+
                         <div className="form-actions">
                           <button
                             className="primary"
-                            disabled={busy || !human.ready}
+                            disabled={busy}
                             onClick={async () => {
                               const start = await call(
                                 "auth/recovery/passkey/start",

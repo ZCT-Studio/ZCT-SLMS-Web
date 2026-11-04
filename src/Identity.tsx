@@ -2,7 +2,7 @@ import {oauthBrowserVerifier,forgetOauthBinding} from "./Network";
 import { useEffect, useState, useRef } from "react";
 import { HelpTip } from "./Help";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Settings, CircleHelp, Github, Grid2X2 } from "lucide-react";
+import { Settings, CircleHelp, Github, Grid2X2, Chrome, Send, Gitlab, MessageCircle } from "lucide-react";
 import { CustomSelect, Toggle } from "./Select";
 import { Dialog } from "./Extras";
 import { authenticateFactors, useHuman } from "./Security";
@@ -26,6 +26,10 @@ type Options = {
   phone_enabled: boolean;
   email_enabled: boolean;
   github_enabled: boolean;
+  google_enabled: boolean;
+  telegram_enabled: boolean;
+  gitlab_enabled: boolean;
+  discord_enabled: boolean;
   microsoft_enabled: boolean;
 };
 const labels: Record<string, string> = {
@@ -33,6 +37,10 @@ const labels: Record<string, string> = {
   email: "邮箱",
   microsoft: "微软账号",
   github: "GitHub",
+  google: "Google",
+  telegram: "Telegram",
+  gitlab: "GitLab",
+  discord: "Discord",
 };
 const names: Record<string, string> = {
   public_url: "前端可访问地址",
@@ -50,6 +58,14 @@ const names: Record<string, string> = {
   twilio_sid: "Account SID",
   twilio_token: "Auth Token",
   twilio_from: "发送号码（E.164）",
+  gitlab_client: "Application ID",
+  gitlab_secret: "Secret",
+  discord_client: "Client ID",
+  discord_secret: "Client Secret",
+  google_client: "Client ID",
+  google_secret: "Client Secret",
+  telegram_client: "Client ID（BotFather）",
+  telegram_secret: "Client Secret（BotFather）",
   github_client: "Client ID",
   github_secret: "Client Secret",
   microsoft_client: "Application Client ID",
@@ -122,6 +138,8 @@ export function IdentityAdmin({ api }: { api: Api }) {
                 "aliyun_template",
                 "aliyun_reset_template",
               ]
+          : ["google", "telegram", "gitlab", "discord"].includes(dialog)
+            ? [dialog + "_client", dialog + "_secret"]
           : dialog === "github"
             ? ["github_client", "github_secret"]
             : dialog === "microsoft"
@@ -217,9 +235,7 @@ export function IdentityAdmin({ api }: { api: Api }) {
                 ? `短信服务：${draft.sms_provider === "twilio" ? "Twilio" : "阿里云"}`
                 : method === "email"
                   ? "SMTP 验证码"
-                  : method === "microsoft"
-                    ? "Microsoft OAuth"
-                    : "GitHub OAuth"}
+                  : `${label} OAuth`}
             </small>
           </div>
           <div className="inline-actions">
@@ -381,7 +397,7 @@ export function IdentityAdmin({ api }: { api: Api }) {
                 </p>
               </HelpTip>
             )}
-            {(dialog === "microsoft" || dialog === "github") && (
+            {["microsoft", "github", "google", "telegram", "gitlab", "discord"].includes(dialog) && (
               <button
                 type="button"
                 className="icon-button"
@@ -447,11 +463,18 @@ export function IdentityAdmin({ api }: { api: Api }) {
       {help && (
         <Dialog
           title={
-            help === "microsoft" ? "微软登录配置步骤" : "GitHub 登录配置步骤"
+            `${labels[help]}登录配置步骤`
           }
           close={() => setHelp("")}
         >
-          <ol className="setup-steps">
+          {["google", "telegram", "gitlab", "discord"].includes(help) ? (
+            <ol className="setup-steps">
+              <li>先配置前端和后端可访问地址，生产环境使用 HTTPS。</li>
+              <li>{help === "gitlab" ? <><a href="https://gitlab.com/-/user_settings/applications" target="_blank" rel="noreferrer">GitLab.com Applications</a>：创建应用，登记完整回调地址，启用 openid、profile 权限并保存 Application ID 与 Secret。</> : help === "discord" ? <><a href="https://discord.com/developers/applications" target="_blank" rel="noreferrer">Discord Developer Portal</a>：创建应用，在 OAuth2 登记 Redirects，保存 Client ID 和 Client Secret；登录只请求 identify 权限。</> : help === "google" ? <><a href="https://console.cloud.google.com/auth/clients" target="_blank" rel="noreferrer">Google Cloud 控制台</a>：配置 OAuth 同意屏幕，创建 Web 应用类型的 OAuth Client；测试阶段将账号加入测试用户。</> : <><a href="https://t.me/BotFather" target="_blank" rel="noreferrer">BotFather</a>：选择机器人，打开 Login Widget，在 Allowed URLs 登记前端源地址和下方完整回调地址；签名算法保留 RS256。</>}</li>
+              <li>登记回调地址：<code style={{display:"block",overflowWrap:"anywhere"}}>{draft.backend_url || draft.public_url || "https://你的后端域名"}/api/v1/auth/connect/callback/{help}</code></li>
+              <li>将服务商提供的 Client ID 和 Client Secret 填入本平台，保存后开启登录开关。需要新账号自动注册时，同时开启用户注册。</li>
+            </ol>
+          ) : <ol className="setup-steps">
             <li>先配置前端可访问地址；分域部署时同时配置后端可访问地址。生产环境使用 HTTPS，本机调试可使用 localhost。</li>
             <li>
               {help === "microsoft" ? (
@@ -497,10 +520,10 @@ export function IdentityAdmin({ api }: { api: Api }) {
             <li>
               输入当前管理员密码保存，再打开该登录方式的开关。需要新用户注册时，同时打开开放用户注册。
             </li>
-          </ol>
-          <button className="primary" onClick={() => setHelp("")}>
-            知道了
-          </button>
+          </ol>}
+          <div className="form-actions"><button className="primary" onClick={() => setHelp("")}>
+            我知道了
+          </button></div>
         </Dialog>
       )}
     </section>
@@ -651,7 +674,6 @@ export function IdentityAccess({
           provider,
           action: bind ? "bind" : "login",
           password,
-          ...human.fields,
         },
         "POST",
       );
@@ -664,7 +686,7 @@ export function IdentityAccess({
   }
   return (
     <div
-      className={`identity-access ${!bind && !registering && !options.isError && mode !== "code" && (mode === "providers" || !available.length) && !options.data?.github_enabled && !options.data?.microsoft_enabled ? "identity-access-empty" : ""}`}
+      className={`identity-access ${!bind && !registering && !options.isError && mode !== "code" && (mode === "providers" || !available.length) && !options.data?.github_enabled && !options.data?.microsoft_enabled && !options.data?.google_enabled && !options.data?.telegram_enabled && !options.data?.gitlab_enabled && !options.data?.discord_enabled ? "identity-access-empty" : ""}`}
     >
       {bind && <h3>绑定登录身份</h3>}
       {mode === "code" && options.data && !available.length && (
@@ -862,7 +884,7 @@ export function IdentityAccess({
             </form>
           )}
           <div className="oauth-actions">
-            {(["microsoft", "github"] as const)
+            {(["microsoft", "github", "google", "telegram", "gitlab", "discord"] as const)
               .filter(
                 (p) =>
                   options.data?.[(p + "_enabled") as keyof Options],
@@ -874,24 +896,22 @@ export function IdentityAccess({
                   className="secondary oauth-icon"
                   title={`${labels[p]}：登录或注册`}
                   aria-label={`${labels[p]}：登录或注册`}
-                  disabled={busy || !human.ready}
+                  disabled={busy}
                   onClick={() => oauth(p)}
                 >
-                  {p === "github" ? <Github size={22} /> : <Grid2X2 size={22} />}
+                  {p === "github" ? <Github size={22} /> : p === "google" ? <Chrome size={22} /> : p === "telegram" ? <Send size={22} /> : p === "gitlab" ? <Gitlab size={22} /> : p === "discord" ? <MessageCircle size={22} /> : <Grid2X2 size={22} />}
                   {bind && `绑定${labels[p]}`}
                 </button>
               ))}
           </div>
           {!usingInvite &&
             (!sharedHuman || registering || mode === "code") &&
-            (available.length > 0 ||
-              options.data?.github_enabled ||
-              options.data?.microsoft_enabled) &&
+            available.length > 0 &&
             human.widget}
           {registering &&
             !bind &&
             (options.data?.github_enabled ||
-              options.data?.microsoft_enabled) && (
+              options.data?.microsoft_enabled || options.data?.google_enabled || options.data?.telegram_enabled || options.data?.gitlab_enabled || options.data?.discord_enabled) && (
               <p className="muted">第三方首次登录将创建独立用户账号。</p>
             )}
         </>

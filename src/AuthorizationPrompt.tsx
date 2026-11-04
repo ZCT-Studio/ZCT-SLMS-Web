@@ -19,6 +19,10 @@ const labels: Record<string, string> = {
   email: "邮箱验证码",
   phone: "手机验证码",
   github: "GitHub",
+  google: "Google",
+  telegram: "Telegram",
+  gitlab: "GitLab",
+  discord: "Discord",
   microsoft: "Microsoft",
   recovery: "恢复码",
 };
@@ -56,9 +60,14 @@ export function AuthorizationPromptHost() {
     setError("");
     setBusy(false);
   }
+  function availableMethods(data: any): string[] {
+    const priority = ["passkey", "microsoft", "github", "google", "telegram", "gitlab", "discord", "password", "email", "phone", "totp", "recovery"];
+    return [...new Set<string>([...(data.methods || []), ...(data.recovery_available ? ["recovery"] : [])])]
+      .sort((a, b) => (priority.indexOf(a) < 0 ? 99 : priority.indexOf(a)) - (priority.indexOf(b) < 0 ? 99 : priority.indexOf(b)));
+  }
   function update(data: any) {
     setFlow(data);
-    setMethod(data.methods?.[0] || "recovery");
+    setMethod(availableMethods(data)[0] || "");
     setCodeChallenge("");
     setCooldown(0);
     setError("");
@@ -155,7 +164,7 @@ export function AuthorizationPromptHost() {
           try {
             setBusy(true);
             setError("");
-            if (method === "github" || method === "microsoft") {
+            if (["github", "microsoft", "google", "telegram", "gitlab", "discord"].includes(method)) {
               popup.current = window.open(
                 "about:blank",
                 "zct_slms-authorization",
@@ -203,10 +212,7 @@ export function AuthorizationPromptHost() {
                   setCodeChallenge("");
                   setError("");
                 }}
-                options={[
-                  ...(flow.methods || []),
-                  ...(flow.recovery_available ? ["recovery"] : []),
-                ].map((value) => ({ value, label: labels[value] || value }))}
+                options={availableMethods(flow).map((value) => ({ value, label: labels[value] || value }))}
               />
             </label>
             {method === "password" && (
