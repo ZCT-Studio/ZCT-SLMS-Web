@@ -1,4 +1,7 @@
 #!/bin/sh
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) 2026 ZCT Studio
+
 set -eu
 url="${ZCT_SLMS_WEB_API_URL:-}"
 valid=1

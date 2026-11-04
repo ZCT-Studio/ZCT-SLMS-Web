@@ -1,4 +1,38 @@
-<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ZCT-SLMS API 文档</title><style>body{font:15px system-ui;margin:auto;max-width:960px;padding:24px;background:#f7f8fa;color:#202634}section{background:white;border-radius:18px;padding:24px;margin:24px 0}pre{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.7}a{color:#7869df}</style><a href="/">返回登录</a><h1>API 文档</h1><section><pre># API 概览
+<!-- SPDX-License-Identifier: BSD-3-Clause
+     Copyright (c) 2026 ZCT Studio -->
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta content="width=device-width,initial-scale=1" name="viewport">
+<title>ZCT-SLMS API 文档</title>
+<style>body {
+    font: 15px system-ui;
+    margin: auto;
+    max-width: 960px;
+    padding: 24px;
+    background: #f7f8fa;
+    color: #202634
+}
+
+section {
+    background: white;
+    border-radius: 18px;
+    padding: 24px;
+    margin: 24px 0
+}
+
+pre {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    line-height: 1.7
+}
+
+a {
+    color: #7869df
+}</style>
+<a href="/">返回登录</a>
+<h1>API 文档</h1>
+<section><pre># API 概览
 
 接口前缀为 /api/v1。常用分组如下，具体权限以接口为准：
 
@@ -50,7 +84,9 @@ Authorization: Bearer &lt;登录接口返回的 token&gt;
 6002  USER_EXPIRED
 6003  USER_DISABLED
 6004  USER_BAD_CREDENTIALS
-9001  RATE_LIMITED</pre></section><section><pre># POST /api/v1/client/license/verify
+9001  RATE_LIMITED</pre>
+</section>
+<section><pre># POST /api/v1/client/license/verify
 
 验证或激活卡密，返回当前状态、剩余时长及绑定模式。
 
@@ -96,4 +132,6 @@ remaining 为剩余秒数，expires_at 为 Unix 秒级到期时间（-1 表示�
 https://api.example.com/api/v1/auth/connect/callback/github
 
 登录结果使用短时一次性票据与浏览器持有的验证器交换，不依赖跨站 Cookie。分域访问需配置允许的前端来源及前端运行时 API 地址；不要在客户端存放第三方 Client Secret。
-</pre></section></html>
+</pre>
+</section>
+</html>

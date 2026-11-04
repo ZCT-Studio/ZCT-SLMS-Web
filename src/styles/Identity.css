@@ -1,83 +1,104 @@
+/* SPDX-License-Identifier: BSD-3-Clause
+ * Copyright (c) 2026 ZCT Studio
+ */
+
 .identity-access {
-  border-top: 1px solid #edf0f6;
-  margin-top: 22px;
-  padding-top: 18px;
+    border-top: 1px solid #edf0f6;
+    margin-top: 22px;
+    padding-top: 18px;
 }
+
 .identity-access .settings-tabs {
-  margin-bottom: 20px;
+    margin-bottom: 20px;
 }
+
 .identity-access label {
-  display: block;
-  font-size: 12px;
-  font-weight: 600;
-  color: #555d71;
-  margin-bottom: 14px;
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: #555d71;
+    margin-bottom: 14px;
 }
+
 .identity-access input:not([type="hidden"]) {
-  display: block;
-  width: 100%;
-  border: 1px solid #e8eaf2;
-  border-radius: 9px;
-  padding: 11px 12px;
-  margin-top: 8px;
-  color: #30364b;
-  font-size: 12px;
+    display: block;
+    width: 100%;
+    border: 1px solid #e8eaf2;
+    border-radius: 9px;
+    padding: 11px 12px;
+    margin-top: 8px;
+    color: #30364b;
+    font-size: 12px;
 }
+
 .code-row {
-  display: flex;
-  gap: 10px;
-  align-items: end;
-  margin-bottom: 14px;
+    display: flex;
+    gap: 10px;
+    align-items: end;
+    margin-bottom: 14px;
 }
+
 .code-row label {
-  flex: 1;
-  margin: 0;
+    flex: 1;
+    margin: 0;
 }
+
 .code-row .secondary {
-  height: 39px;
-  white-space: nowrap;
+    height: 39px;
+    white-space: nowrap;
 }
+
 .oauth-actions {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-top: 14px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 14px;
 }
+
 .oauth-actions > button {
-  flex: 1;
+    flex: 1;
 }
+
 .inline-actions {
-  display: flex;
-  align-items: center;
-  gap: 14px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
 }
+
 .identity-admin .setting-row {
-  border-top: 1px solid #f1f2f7;
-  padding: 18px 0;
+    border-top: 1px solid #f1f2f7;
+    padding: 18px 0;
 }
+
 .identity-admin .setting-row small {
-  overflow-wrap: anywhere;
-  max-width: 500px;
+    overflow-wrap: anywhere;
+    max-width: 500px;
 }
+
 .security-tabs {
-  flex-wrap: wrap;
+    flex-wrap: wrap;
 }
+
 .login-page {
-  padding: 100px 0 70px;
-  position: relative;
+    padding: 100px 0 70px;
+    position: relative;
 }
+
 .identity-admin .muted {
-  line-height: 1.7;
+    line-height: 1.7;
 }
+
 .identity-access form > .primary {
-  width: 100%;
+    width: 100%;
 }
+
 .login-footer {
-  left: 0;
-  right: 0;
-  text-align: center;
+    left: 0;
+    right: 0;
+    text-align: center;
 }
+
 .identity-admin .icon-button {
-  display: grid;
-  place-items: center;
+    display: grid;
+    place-items: center;
 }

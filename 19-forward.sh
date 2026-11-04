@@ -1,4 +1,7 @@
 #!/bin/sh
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) 2026 ZCT Studio
+
 set -eu
 proxy_url="${ZCT_SLMS_WEB_PROXY_URL:-http://host.docker.internal:17112}"
 case "${ZCT_SLMS_WEB_FORWARD_MODE:-proxy}" in

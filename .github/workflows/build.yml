@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) 2026 ZCT Studio
+
 name: Build and Release
 
 on:
@@ -6,113 +9,113 @@ on:
       - '**'
       - '!main'
       - '!main-*'
-    tags: ['v*']
+    tags: [ 'v*' ]
   pull_request:
 
 permissions:
   contents: read
 
 jobs:
-    version-check:
-        name: Validate release version
-        runs-on: ubuntu-24.04
-        steps:
-            - uses: actions/checkout@v4
-            - name: Compare release tag with VERSION
-              shell: bash
-              run: bash .github/scripts/check-version.sh
+  version-check:
+    name: Validate release version
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compare release tag with VERSION
+        shell: bash
+        run: bash .github/scripts/check-version.sh
 
-    build:
-        needs: [version-check]
-        name: Universal Static Files
-        runs-on: ubuntu-24.04
-        steps:
-            - uses: actions/checkout@v4
-            - uses: actions/setup-node@v4
-              with:
-                  node-version: '22'
-                  cache: npm
-            - run: npm ci --no-audit --no-fund
-            - run: npm run build
-            - name: Stage Static Files
-              run: |
-                  mkdir -p package/ZCT-SLMS-Web
-                  test -s dist/index.html
-                  test -s dist/runtime-config.js
-                  test -s dist/api-docs.html
-                  cp -a dist/. package/ZCT-SLMS-Web/
-                  cp .env.example README.md LICENSE VERSION package/ZCT-SLMS-Web/
-            - uses: actions/upload-artifact@v4
-              with:
-                  name: ZCT-SLMS-Web
-                  path: package/
-                  include-hidden-files: true
-                  if-no-files-found: error
+  build:
+    needs: [ version-check ]
+    name: Universal Static Files
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
+      - name: Stage Static Files
+        run: |
+          mkdir -p package/ZCT-SLMS-Web
+          test -s dist/index.html
+          test -s dist/runtime-config.js
+          test -s dist/api-docs.html
+          cp -a dist/. package/ZCT-SLMS-Web/
+          cp .env.example README.md LICENSE VERSION package/ZCT-SLMS-Web/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ZCT-SLMS-Web
+          path: package/
+          include-hidden-files: true
+          if-no-files-found: error
 
-    docker:
-        name: Docker / Tag Publish
-        needs: [build]
-        runs-on: ubuntu-24.04
-        permissions:
-            contents: read
-            packages: write
-        steps:
-            - uses: actions/checkout@v4
-              with: { submodules: recursive }
-            - uses: docker/setup-buildx-action@v3
-            - name: Docker Metadata
-              id: meta
-              uses: docker/metadata-action@v5
-              with:
-                  images: ghcr.io/zct-studio/zct-slms-web
-                  tags: |
-                      type=ref,event=tag
-                      type=ref,event=pr
-                      type=sha,prefix=sha-
-                      type=raw,value=latest,enable=${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-') }}
-            - name: Log in to GHCR (tags only)
-              if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-              uses: docker/login-action@v3
-              with:
-                  registry: ghcr.io
-                  username: ${{ github.actor }}
-                  password: ${{ secrets.GITHUB_TOKEN }}
-            - name: Build image; push only for v* tag
-              uses: docker/build-push-action@v6
-              with:
-                  context: .
-                  file: Dockerfile
-                  platforms: linux/amd64,linux/arm64
-                  push: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
-                  tags: ${{ steps.meta.outputs.tags }}
-                  labels: ${{ steps.meta.outputs.labels }}
-                  cache-from: type=gha
-                  cache-to: type=gha,mode=max
-
-    release:
+  docker:
+    name: Docker / Tag Publish
+    needs: [ build ]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+        with: { submodules: recursive }
+      - uses: docker/setup-buildx-action@v3
+      - name: Docker Metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/zct-studio/zct-slms-web
+          tags: |
+            type=ref,event=tag
+            type=ref,event=pr
+            type=sha,prefix=sha-
+            type=raw,value=latest,enable=${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-') }}
+      - name: Log in to GHCR (tags only)
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-        needs: [build, docker]
-        runs-on: ubuntu-24.04
-        permissions:
-            contents: write
-        steps:
-            - uses: actions/download-artifact@v4
-              with:
-                  name: ZCT-SLMS-Web
-                  path: .
-            - name: Archive Universal Static Files
-              run: |
-                  for required in index.html runtime-config.js api-docs.html .env.example README.md LICENSE VERSION; do
-                    test -s "ZCT-SLMS-Web/$required"
-                  done
-                  tar -czf ZCT-SLMS-Web.tar.gz ZCT-SLMS-Web
-                  zip -qr ZCT-SLMS-Web.zip ZCT-SLMS-Web
-            - uses: softprops/action-gh-release@v2
-              with:
-                  tag_name: ${{ github.ref_name }}
-                  name: ZCT-SLMS Web ${{ github.ref_name }}
-                  files: |
-                      ZCT-SLMS-Web.tar.gz
-                      ZCT-SLMS-Web.zip
-                  fail_on_unmatched_files: true
-                  prerelease: ${{ contains(github.ref_name, '-') }}
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build image; push only for v* tag
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  release:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: [ build, docker ]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: ZCT-SLMS-Web
+          path: .
+      - name: Archive Universal Static Files
+        run: |
+          for required in index.html runtime-config.js api-docs.html .env.example README.md LICENSE VERSION; do
+            test -s "ZCT-SLMS-Web/$required"
+          done
+          tar -czf ZCT-SLMS-Web.tar.gz ZCT-SLMS-Web
+          zip -qr ZCT-SLMS-Web.zip ZCT-SLMS-Web
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ZCT-SLMS Web ${{ github.ref_name }}
+          files: |
+            ZCT-SLMS-Web.tar.gz
+            ZCT-SLMS-Web.zip
+          fail_on_unmatched_files: true
+          prerelease: ${{ contains(github.ref_name, '-') }}

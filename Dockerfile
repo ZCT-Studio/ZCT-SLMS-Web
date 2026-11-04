@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) 2026 ZCT Studio
+
 ARG ZCT_SLMS_BUILD_NODE_IMAGE=node:22-alpine
 ARG ZCT_SLMS_BUILD_NGINX_IMAGE=nginx:alpine
 FROM --platform=$BUILDPLATFORM ${ZCT_SLMS_BUILD_NODE_IMAGE} AS build
