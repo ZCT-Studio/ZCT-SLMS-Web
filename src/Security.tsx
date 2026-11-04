@@ -102,10 +102,29 @@ function ProviderWidget({
   onToken: (v: string) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null),
+    containerRef = useRef<HTMLDivElement>(null),
     callback = useRef(onToken);
   callback.current = onToken;
   const [error, setError] = useState("");
+  const [compact, setCompact] = useState<boolean | null>(null);
   useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const measure = () => {
+      const width = container.clientWidth;
+      if (width > 0) setCompact(width < (provider === "turnstile" ? 300 : 304));
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", measure);
+      return () => window.removeEventListener("resize", measure);
+    }
+    const observer = new ResizeObserver(measure);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [provider]);
+  useEffect(() => {
+    if (compact === null) return;
     let active = true,
       id: any,
       api: any;
@@ -124,6 +143,7 @@ function ProviderWidget({
           if (!active || !ref.current) return;
           id = api.render(ref.current, {
             sitekey: siteKey,
+            size: compact ? "compact" : provider === "turnstile" ? "flexible" : "normal",
             callback: (token: string) => { if (active) callback.current(token); },
             "expired-callback": () => { if (active) callback.current(""); },
             "error-callback": () => {
@@ -148,10 +168,10 @@ function ProviderWidget({
         } catch {}
       }
     };
-  }, [provider, siteKey]);
+  }, [provider, siteKey, compact]);
   return (
     <>
-      <div ref={ref} />
+      <div ref={containerRef} className="captcha-widget-container"><div key={`${provider}-${compact}`} ref={ref} /></div>
       {error && <p className="error">{error}</p>}
     </>
   );
@@ -196,7 +216,7 @@ export function useHuman(api: Api, enabled = true) {
   ) : data.provider === "none" ? null : (
     <div className="human-check">
       <div className="inline-actions">
-        <strong>人机验证</strong>
+        <strong>请帮我们解决机器人</strong>
         <button
           className="icon-button"
           type="button"
