@@ -76,7 +76,8 @@ import {
   SupportShell,
   TicketBadge,
 } from "./Portal";
-import { version as webVersion } from "../package.json";
+import rawWebVersion from "../VERSION?raw";
+const webVersion = rawWebVersion.trim();
 import "./styles/style.css";
 import "./styles/FormControls.css";
 import "./styles/Portal.css";
@@ -248,6 +249,9 @@ function Login({ onLogin }: { onLogin: (s: Session) => void }) {
             )}
             {!codeLogin && <a href="/forgot-password">忘记密码</a>}
           </div>
+        )}
+        {(() => { try { return JSON.parse(localStorage.getItem("zct_slms-accounts") || "[]").length > 0; } catch { return false; } })() && (
+          <div className="login-secondary-links"><a href="/?accounts=1">已保存的账号</a></div>
         )}
     </LoginFrame>
   );
@@ -1652,7 +1656,7 @@ function SavedAccounts() {
     if (getSession()?.token === token) localStorage.removeItem("zct_slms-session");
     setAccounts(next);
   };
-  if (adding) return <><Login onLogin={() => window.location.assign("/")} /><a className="saved-account-back" href="/?accounts=1">返回已保存的账号</a></>;
+  if (adding) return <Login onLogin={() => window.location.assign("/")} />;
   return <div className="login-page"><div className="login-brand">ZCT-SLMS</div><div className="login-card"><h1>已保存的账号</h1><div className="saved-account-list">{accounts.map(a => <div className="saved-account-row" key={a.token}><button onClick={() => {localStorage.setItem("zct_slms-session", JSON.stringify(a)); window.location.assign("/");}}><strong>{a.nickname || a.username}</strong><small>{a.username}</small></button><button className="saved-account-remove" aria-label={`移除账号 ${a.username}`} onClick={() => remove(a.token)}>删除</button></div>)}</div><button className="primary" onClick={() => window.location.assign("/?accounts=1&add=1")}>添加账号</button></div><div className="login-footer">© ZCT-SLMS</div></div>;
 }
 function Root() {
@@ -1679,7 +1683,7 @@ function Root() {
           setSession(s);
         }}
       />
-      {(new URLSearchParams(location.search).has("accounts") || (!session && location.pathname === "/" && (() => { try { return JSON.parse(localStorage.getItem("zct_slms-accounts") || "[]").length > 0; } catch { return false; } })())) ? <SavedAccounts /> : session ? (
+      {(new URLSearchParams(location.search).has("accounts") || (!session && location.pathname === "/" && (() => { try { return JSON.parse(localStorage.getItem("zct_slms-accounts") || "[]").length > 0; } catch { return false; } })())) ? <SavedAccounts /> : session && location.pathname !== "/register" && location.pathname !== "/forgot-password" ? (
         <OnboardingGate
           api={api}
           session={session}
@@ -1704,6 +1708,7 @@ function Root() {
           onLogin={(s) => {
             client.clear();
             setSession(s);
+            if (location.pathname === "/register") window.location.assign("/");
           }}
         />
       )}

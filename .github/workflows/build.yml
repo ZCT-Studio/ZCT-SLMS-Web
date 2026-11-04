@@ -13,7 +13,17 @@ permissions:
   contents: read
 
 jobs:
+    version-check:
+        name: Validate release version
+        runs-on: ubuntu-24.04
+        steps:
+            - uses: actions/checkout@v4
+            - name: Compare release tag with VERSION
+              shell: bash
+              run: bash .github/scripts/check-version.sh
+
     build:
+        needs: [version-check]
         name: Universal Static Files
         runs-on: ubuntu-24.04
         steps:
@@ -31,7 +41,7 @@ jobs:
                   test -s dist/runtime-config.js
                   test -s dist/api-docs.html
                   cp -a dist/. package/ZCT-SLMS-Web/
-                  cp .env.example README.md LICENSE package/ZCT-SLMS-Web/
+                  cp .env.example README.md LICENSE VERSION package/ZCT-SLMS-Web/
             - uses: actions/upload-artifact@v4
               with:
                   name: ZCT-SLMS-Web
@@ -92,7 +102,7 @@ jobs:
                   path: .
             - name: Archive Universal Static Files
               run: |
-                  for required in index.html runtime-config.js api-docs.html .env.example README.md LICENSE; do
+                  for required in index.html runtime-config.js api-docs.html .env.example README.md LICENSE VERSION; do
                     test -s "ZCT-SLMS-Web/$required"
                   done
                   tar -czf ZCT-SLMS-Web.tar.gz ZCT-SLMS-Web

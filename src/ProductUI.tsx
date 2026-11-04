@@ -1,6 +1,7 @@
 import type {ReactNode} from "react";
 import {motion} from "motion/react";
-import {version} from "../package.json";
+import rawVersion from "../VERSION?raw";
+const version = rawVersion.trim();
 export function WorkspaceBrand(){return <><div className="brand"><div><strong>ZCT-SLMS</strong><div className="versions">Web v{version}</div></div></div><div className="nav-divider"/></>}
 export function LoginFrame({children,title="欢迎回来",links,notice,footer="© ZCT-SLMS"}:{children:ReactNode;title?:string;links?:ReactNode;notice?:ReactNode;footer?:string}){return <div className="login-page auth-login-page"><nav className="login-top-links">{links}</nav><div className="login-brand"><span>ZCT-SLMS</span></div><motion.div initial={{opacity:0,y:15}} animate={{opacity:1,y:0}} className="login-card"><div className="eyebrow">WELCOME BACK</div><h1>{title}</h1>{notice||<p/>}{children}</motion.div><div className="login-footer">{footer}</div></div>}
 export function AccountRoleTabs({value,onChange}:{value:string;onChange:(value:string)=>void}){return <div className="role-tabs">{[["owner","用户"],["subuser","子用户"],["admin","管理员/支持"]].map(([v,label])=><button type="button" className={value===v?"active":""} onClick={()=>onChange(v)} key={v}>{label}</button>)}</div>}
