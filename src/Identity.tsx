@@ -40,7 +40,7 @@ type Options = {
 const labels: Record<string, string> = {
     phone: "手机号",
     email: "邮箱",
-    microsoft: "微软账号",
+    microsoft: "Microsoft",
     github: "GitHub",
     google: "Google",
     telegram: "Telegram",

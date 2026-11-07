@@ -28,7 +28,7 @@ const labels: Record<string, string> = {
     telegram: "Telegram",
     gitlab: "GitLab",
     discord: "Discord",
-    microsoft: "微软账号",
+    microsoft: "Microsoft",
     recovery: "恢复码",
 };
 
