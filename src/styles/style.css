@@ -861,6 +861,20 @@ select {
     cursor: pointer
 }
 
+.recovery-notice {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    cursor: default;
+    overflow-wrap: anywhere;
+}
+
+.recovery-notice p {
+    margin: 0;
+    line-height: 1.6;
+}
+
 .error {
     background: #fff0ef;
     color: #c55454

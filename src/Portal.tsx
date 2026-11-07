@@ -40,7 +40,6 @@ export function RecoveryPolicy({api}: { api: Api }) {
         ["email", "邮箱验证码"],
         ["phone", "手机验证码"],
         ["passkey", "通行密钥"],
-        ["totp", "动态令牌"],
         ["ticket", "人工工单"],
     ];
     return (

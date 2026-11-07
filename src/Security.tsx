@@ -326,11 +326,10 @@ export function FactorAdmin({api, tab}: { api: Api; tab: string }) {
             {tab === "2fa" ? (
                 <>
                     <p className="muted">
-                        开启 2FA
-                        后，已绑定至少两种方式的账号每次需验证两种；只有一种方式的账号可先登录，并提示添加第二种。下方开关控制新绑定入口。
+                        开启 2FA 后，登录需要验证不同类别的第二因素；没有可用第二因素的账号可先登录，并提示绑定。下方开关控制新绑定入口。
                     </p>
                     {[
-                        ["two_factor_enabled", "开启 2FA（每次至少验证两种登录方式）"],
+                        ["two_factor_enabled", "开启 2FA（登录后验证第二因素）"],
                         ["totp_enabled", "允许绑定动态令牌"],
                         ["passkey_enabled", "允许绑定通行密钥"],
                     ].map(([k, label]) => (
@@ -417,7 +416,7 @@ export function FactorAdmin({api, tab}: { api: Api; tab: string }) {
                                                                                                onChange={value => set(key, value)}/>
                         </div>)}
                     <p className="muted">
-                        密码、动态令牌登录和发送验证码需要人机验证；通行密钥及授权流程由上方开关控制。
+                        密码登录和发送验证码需要人机验证；通行密钥及授权流程由上方开关控制。
                     </p>
                 </>
             )}

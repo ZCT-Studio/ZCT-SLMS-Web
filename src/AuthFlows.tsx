@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 2026 ZCT Studio
 
+import {avatarUrl} from "./Network";
 import {LoginMethodTabs} from "./ProductUI";
 import {BackLink} from "./BackLink";
 import {useEffect, useRef, useState} from "react";
@@ -83,18 +84,6 @@ export function PrimaryLogin({
                             },
                             "POST",
                         );
-                    else if (method === "totp")
-                        result = await api<Session>(
-                            "auth/factors/primary",
-                            {
-                                username,
-                                role,
-                                method,
-                                code: String(f.get("code")),
-                                ...(await human.getFields()),
-                            },
-                            "POST",
-                        );
                     else {
                         const start = await api<any>(
                             "auth/factors/passkey/start",
@@ -141,19 +130,6 @@ export function PrimaryLogin({
                         type="password"
                         autoComplete="current-password"
                         placeholder="输入密码"
-                        required
-                    />
-                </label>
-            )}
-            {method === "totp" && (
-                <label>
-                    动态验证码
-                    <input
-                        name="code"
-                        inputMode="numeric"
-                        pattern="[0-9]{6}"
-                        maxLength={6}
-                        autoComplete="one-time-code"
                         required
                     />
                 </label>
@@ -222,10 +198,10 @@ export function MfaDialog() {
         setFlow(null);
     };
     return (
-        <Dialog title="验证第二种登录方式" close={close}>
+        <Dialog title="验证第二因素" close={close}>
             <p className="muted">
                 已通过{labels[flow.data.primary_method] || "一种方式"}
-                验证，请再选择另一种已绑定的方式。
+                验证，请选择已绑定的第二因素。
             </p>
             <form
                 onSubmit={async (e) => {
@@ -234,20 +210,6 @@ export function MfaDialog() {
                     try {
                         setBusy(true);
                         setError("");
-                        if (["github", "microsoft", "google", "telegram", "gitlab", "discord"].includes(method)) {
-                            const start = await flow.api<any>(
-                                "auth/factors/oauth/start",
-                                {
-                                    action: "mfa",
-                                    challenge_id: flow.data.challenge_id,
-                                    provider: method,
-                                    ...(needHuman ? await human.getFields() : {}),
-                                },
-                                "POST",
-                            );
-                            window.location.assign(start.url);
-                            return;
-                        }
                         const credential =
                             method === "passkey"
                                 ? await performPasskey(flow.data.public_key)
@@ -541,7 +503,7 @@ export function OnboardingGate({
                     {q.data.profile_setup && <>
                         <label>头像
                             <span className="avatar-upload"><span className="avatar">{profileAvatar ?
-                                <img src={profileAvatar} referrerPolicy="no-referrer"
+                                <img src={avatarUrl(profileAvatar)} referrerPolicy="no-referrer"
                                      alt="预填头像"/> : "用"}</span><span>选择图片<small>PNG、JPEG、WebP</small></span>
                 <input className="avatar-file-input" type="file" accept="image/png,image/jpeg,image/webp"
                        onChange={e => {
@@ -628,10 +590,9 @@ export function SecondMethodBanner({api}: { api: Api }) {
     });
     return q.data?.needs_second_method ? (
         <div className="security-banner">
-            <strong>请添加第二种登录方式</strong>
+            <strong>请添加第二因素</strong>
             <span>
-        平台已开启
-        2FA，你目前仅有一种可用方式。请绑定动态令牌、通行密钥或其他身份。
+        平台已开启 2FA，但你尚无可用的第二因素。请绑定动态令牌、通行密钥或验证码方式。
       </span>
             <a className="secondary" href="/account">
                 前往账号设置

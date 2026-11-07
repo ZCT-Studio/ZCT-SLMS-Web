@@ -118,21 +118,6 @@ OAuth；结果使用短时一次性票据和浏览器验证器交换，不依赖
 Docker 镜像内已包含静态页面、运行时配置脚本和 Nginx API 转发配置；宿主机环境变量模板随静态发布包和源码提供。GitHub Pages
 Demo 保持完全静态，不包含部署环境模板。发布包与镜像均不包含本地 `.env`。
 
-## Google 与 Telegram 登录
-
-在安全设置的“注册登录”配置 Client ID 和 Client Secret，填写“可访问地址”后启用对应开关。Google 创建 Web 应用类型的 OAuth
-客户端；Telegram 在 BotFather 的 Login Widget 中登记 Allowed URLs 并保留 RS256 签名。完整操作步骤位于配置弹窗的问号按钮。
-
-回调分别为后端地址加 `/api/v1/auth/connect/callback/google` 和 `/api/v1/auth/connect/callback/telegram`
-。两者都支持自动注册、绑定、二次验证及解绑工单，不要求人机验证；首次注册需自定义用户名，密码可以留空。
-
-GitLab.com 和 Discord 同样支持 OAuth 登录：分别在 GitLab Applications、Discord Developer Portal 创建应用，回调使用后端地址加
-`/api/v1/auth/connect/callback/gitlab`、`/api/v1/auth/connect/callback/discord`。GitLab 授权 openid/profile，Discord 仅请求
-identify。
-
-第三方首次登录尽量预填用户名、昵称和头像，用户确认或修改后保存；服务商未返回用户名时需自行填写，不会据邮箱推断用户名。微软资料和头像读取需要
-User.Read，已有应用可能需要重新同意授权。已完成初始化的账号保留自己的资料。
-
 Web 显示版本统一修改根目录 `VERSION`，构建时自动读取；运行构建或开发命令时会将版本同步到 `package.json` 和
 `package-lock.json`；修改 VERSION 后也可执行 `node scripts/sync-version.mjs` 立即同步。支持 `2.2.0-beta.1` 等预发布版本。
 

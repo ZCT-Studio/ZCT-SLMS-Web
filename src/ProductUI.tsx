@@ -44,7 +44,7 @@ export function AccountRoleTabs({value, onChange}: { value: string; onChange: (v
 
 export function LoginMethodTabs({value, onChange}: { value: string; onChange: (value: string) => void }) {
     return <div
-        className="login-methods">{[["password", "密码"], ["passkey", "通行密钥"], ["totp", "动态令牌"]].map(([v, label]) =>
+        className="login-methods">{[["password", "密码"], ["passkey", "通行密钥"]].map(([v, label]) =>
         <button type="button" key={v} className={value === v ? "active" : ""}
                 onClick={() => onChange(v)}>{label}</button>)}</div>
 }

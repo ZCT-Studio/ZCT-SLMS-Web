@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 2026 ZCT Studio
 
+import {avatarUrl} from "./Network";
 import {ResponsiveTable} from "./ResponsiveTable";
 import {useEffect, useMemo, useState} from "react";
 import {Dialog} from "./Dialog";
@@ -54,7 +55,7 @@ type SubUser = {
 const bindingName = (v: string) =>
     ({NONE: "无", IP: "IP", DEVICE: "设备", IP_AND_DEVICE: "设备和 IP"})[v] ??
     v;
-const profileKey = (s: Session) => `zct_slms-profile:v2:${s.user_type}:${s.user_id}`;
+const profileKey = (s: Session) => `zct_slms-profile:v3:${s.user_type}:${s.user_id}`;
 
 export function AppDanger({api, app}: { api: Api; app: App }) {
     const [dialog, setDialog] = useState(""),
@@ -247,7 +248,7 @@ export function ProfileControl({
             >
                 <ChevronDown size={16} className="account-chevron"/>
                 <span className="avatar">
-          {avatar ? <img src={avatar} alt=""/> : nickname[0]?.toUpperCase()}
+          {avatar ? <img src={avatarUrl(avatar)} alt=""/> : nickname[0]?.toUpperCase()}
         </span>
                 <span className="profile-info">
           <strong>{nickname}</strong>
@@ -416,7 +417,7 @@ export function ProfileControl({
                             <span className="avatar-upload">
                 <span className="avatar">
                   {avatar ? (
-                      <img src={avatar} alt="当前头像"/>
+                      <img src={avatarUrl(avatar)} alt="当前头像"/>
                   ) : (
                       nickname[0]?.toUpperCase()
                   )}

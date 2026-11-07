@@ -61,3 +61,5 @@ export async function apiFetch(path: string, init: RequestInit = {}) {
     }
     return fetch(apiUrl(path), {...init, credentials: 'omit'});
 }
+
+export function avatarUrl(value: string) { return value?.startsWith("/api/v1/media/avatar?") ? apiUrl(value) : value; }

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 2026 ZCT Studio
 
+import {avatarUrl} from "./Network";
+
 import {ResponsiveTable} from "./ResponsiveTable";
 import {ModerationPage} from "./ModerationRules";
 import {BackLink} from "./BackLink";
@@ -374,12 +376,12 @@ function ReviewDetail({
                     <h3>{f.label}</h3>
                     {f.key === "avatar" && (
                         <>
-                            {/^data:image\/(png|jpeg|webp);base64,/.test(
+                            {/^(?:data:image\/(?:png|jpeg|webp);base64,|\/api\/v1\/media\/avatar\?id=[a-f0-9]{64}$|https:\/\/)/.test(
                                 app.avatar || "",
                             ) && (
                                 <img
                                     className="review-avatar"
-                                    src={app.avatar}
+                                    src={avatarUrl(app.avatar)}
                                     alt="待审头像"
                                 />
                             )}

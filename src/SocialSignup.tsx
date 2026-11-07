@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 2026 ZCT Studio
 
+import {avatarUrl} from "./Network";
+
 import {useState} from "react";
 import {LoginFrame} from "./ProductUI";
 import {authenticateFactors} from "./Security";
@@ -73,7 +75,7 @@ export function SocialSignup({api, onLogin}: { api: Api; onLogin: (s: Session) =
                 }
             }}>
                 <label>头像<span className="avatar-upload"><span className="avatar">{avatar ?
-                    <img src={avatar} referrerPolicy="no-referrer"
+                    <img src={avatarUrl(avatar)} referrerPolicy="no-referrer"
                          alt="预填头像"/> : "用"}</span><span>选择图片<small>PNG、JPEG、WebP</small></span><input
                     className="avatar-file-input" type="file" accept="image/png,image/jpeg,image/webp" onChange={e => {
                     const file = e.target.files?.[0];
